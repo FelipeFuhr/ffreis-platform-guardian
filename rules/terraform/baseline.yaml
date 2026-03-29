@@ -1,0 +1,126 @@
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-provider-aws-required
+  name: AWS provider required
+  severity: error
+  tags: [terraform]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_provider_required:
+      source: hashicorp/aws
+  remediation:
+    description: "Declare the AWS provider in the terraform required_providers block"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-provider-aws-version-pinned
+  name: AWS provider version must be constrained
+  severity: error
+  tags: [terraform, pinning]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_provider_required:
+      source: hashicorp/aws
+      version: ">="
+  remediation:
+    description: "Pin the AWS provider version in required_providers, e.g. version = \">= 5.0\""
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-backend-s3-required
+  name: S3 remote backend required
+  severity: error
+  tags: [terraform, state]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_backend_config:
+      type: s3
+  remediation:
+    description: "Configure an S3 backend in your terraform block with bucket, key, and region"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-required-tag-environment
+  name: Resources must have 'Environment' tag
+  severity: error
+  tags: [terraform, tagging]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_required_tags:
+      tags: [Environment]
+  remediation:
+    description: "Add an 'Environment' tag to all Terraform resources (e.g. dev, staging, prod)"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-required-tag-team
+  name: Resources must have 'Team' tag
+  severity: error
+  tags: [terraform, tagging]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_required_tags:
+      tags: [Team]
+  remediation:
+    description: "Add a 'Team' tag to all Terraform resources identifying the owning team"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-required-tag-managed-by
+  name: Resources must have 'ManagedBy' tag
+  severity: warning
+  tags: [terraform, tagging]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_required_tags:
+      tags: [ManagedBy]
+  remediation:
+    description: "Add a 'ManagedBy' tag set to 'terraform' on all resources"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-variable-environment-required
+  name: Variable 'environment' required
+  severity: warning
+  tags: [terraform, variables]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_variable_required:
+      name: environment
+  remediation:
+    description: "Declare an 'environment' variable in variables.tf to parameterise the deployment target"

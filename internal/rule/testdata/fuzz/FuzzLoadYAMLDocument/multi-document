@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("---\nkind: Rule\nmetadata:\n  id: rule-one\n---\nkind: RuleSet\nmetadata:\n  id: set-one\nspec:\n  rules:\n    - rule-one\n")

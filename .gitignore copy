@@ -1,0 +1,37 @@
+# Build output
+platform-guardian
+dist/
+
+# Go build cache
+vendor/
+*.test
+
+# Secrets and config — never commit these
+.env
+.env.*
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.backup
+secrets.*
+*secret*
+*credentials*
+
+# SARIF and scan output
+*.sarif
+guardian-report.*
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage.out
+coverage.html

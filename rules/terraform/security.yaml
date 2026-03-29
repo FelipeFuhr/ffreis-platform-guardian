@@ -1,0 +1,89 @@
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-no-iam-access-key
+  name: IAM access key resources forbidden
+  severity: error
+  tags: [terraform, security, iam]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_resource_forbidden:
+      type: aws_iam_access_key
+  remediation:
+    description: "Remove aws_iam_access_key resources — use IAM roles with instance profiles or OIDC instead of long-lived access keys"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-no-unencrypted-s3
+  name: Unencrypted S3 bucket resource forbidden
+  severity: error
+  tags: [terraform, security, s3]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_resource_forbidden:
+      type: aws_s3_bucket_server_side_encryption_configuration
+  remediation:
+    description: "Do not remove encryption configuration from S3 buckets — all buckets must have SSE enabled"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-no-null-resource
+  name: null_resource forbidden
+  severity: warning
+  tags: [terraform, hygiene]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_resource_forbidden:
+      type: null_resource
+  remediation:
+    description: "Replace null_resource with terraform_data (Terraform 1.4+) or a proper resource type"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-no-aws-classic
+  name: AWS Classic resources forbidden
+  severity: error
+  tags: [terraform, security, network]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_resource_forbidden:
+      type: aws_db_security_group
+  remediation:
+    description: "Remove aws_db_security_group — AWS Classic is deprecated; use VPC security groups"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: tf-no-cloudwatch-log-without-retention
+  name: CloudWatch log group without retention is forbidden
+  severity: warning
+  tags: [terraform, cost, security]
+spec:
+  type: terraform
+  scope:
+    match:
+      topics: [terraform]
+  check:
+    tf_resource_forbidden:
+      type: aws_cloudwatch_log_group_no_retention
+  remediation:
+    description: "Set retention_in_days on all aws_cloudwatch_log_group resources to control cost and data retention"

@@ -1,0 +1,236 @@
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-gomod
+  name: go.mod required
+  severity: error
+  tags: [structure, go]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_exists:
+      path: go.mod
+  remediation:
+    description: "Run 'go mod init <module-path>' to create a go.mod file"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-gosum
+  name: go.sum required
+  severity: error
+  tags: [structure, go]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_exists:
+      path: go.sum
+  remediation:
+    description: "Run 'go mod tidy' to generate go.sum"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: go-no-vendor-directory
+  name: vendor/ directory absent
+  severity: info
+  tags: [structure, go, hygiene]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_absent:
+      path: vendor
+  remediation:
+    description: "Remove the vendor/ directory — use the module cache instead. If vendoring is intentional, disable this rule via profile override"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: go-module-ffreis-prefix
+  name: Go module path uses ffreis prefix
+  severity: warning
+  tags: [content, go]
+spec:
+  type: content
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_contains:
+      path: go.mod
+      pattern: "^module github\\.com/ffreis/"
+  remediation:
+    description: "Set the module path to github.com/ffreis/<repo-name> in go.mod"
+---
+# ─── CI structure ─────────────────────────────────────────────────────────────
+
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-go-workflow-lint
+  name: Go lint workflow required
+  severity: error
+  tags: [structure, go, ci]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_exists:
+      path: .github/workflows/lint.yml
+  remediation:
+    description: "Add .github/workflows/lint.yml calling ffreis/platform-workflows-go/.github/workflows/go-lint.yml"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-go-workflow-test
+  name: Go test workflow required
+  severity: error
+  tags: [structure, go, ci]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_exists:
+      path: .github/workflows/tests.yml
+  remediation:
+    description: "Add .github/workflows/tests.yml calling ffreis/platform-workflows-go/.github/workflows/go-test.yml"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-go-workflow-security
+  name: Go security workflow required
+  severity: error
+  tags: [structure, go, ci, security]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_exists:
+      path: .github/workflows/code-security.yml
+  remediation:
+    description: "Add .github/workflows/code-security.yml calling ffreis/platform-workflows-go/.github/workflows/go-security.yml"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-go-workflow-fmt
+  name: Go format workflow required
+  severity: error
+  tags: [structure, go, ci]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    composite:
+      operator: OR
+      checks:
+        - file_exists:
+            path: .github/workflows/fmt.yml
+        - file_exists:
+            path: .github/workflows/lint.yml
+  remediation:
+    description: "Add a format check workflow (fmt.yml) or include format check in lint.yml"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-golangci-config
+  name: golangci-lint config required
+  severity: warning
+  tags: [structure, go, ci]
+spec:
+  type: structure
+  scope:
+    match:
+      languages: [Go]
+  check:
+    composite:
+      operator: OR
+      checks:
+        - file_exists:
+            path: .golangci.yml
+        - file_exists:
+            path: .golangci.yaml
+        - file_exists:
+            path: .golangci.toml
+  remediation:
+    description: "Add a .golangci.yml config at the repository root to configure linter rules"
+
+# ─── CI reuse enforcement ─────────────────────────────────────────────────────
+
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: go-ci-lint-uses-shared-workflow
+  name: Lint workflow must delegate to platform-workflows-go
+  severity: error
+  tags: [content, go, ci]
+spec:
+  type: content
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_contains:
+      path: .github/workflows/lint.yml
+      pattern: "uses: ffreis/platform-workflows-go/"
+  remediation:
+    description: "Replace local lint jobs with: uses: ffreis/platform-workflows-go/.github/workflows/go-lint.yml@main"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: go-ci-test-uses-shared-workflow
+  name: Test workflow must delegate to platform-workflows-go
+  severity: error
+  tags: [content, go, ci]
+spec:
+  type: content
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_contains:
+      path: .github/workflows/tests.yml
+      pattern: "uses: ffreis/platform-workflows-go/"
+  remediation:
+    description: "Replace local test jobs with: uses: ffreis/platform-workflows-go/.github/workflows/go-test.yml@main"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: go-ci-security-uses-shared-workflow
+  name: Security workflow must delegate to platform-workflows-go
+  severity: error
+  tags: [content, go, ci, security]
+spec:
+  type: content
+  scope:
+    match:
+      languages: [Go]
+  check:
+    file_contains:
+      path: .github/workflows/code-security.yml
+      pattern: "uses: ffreis/platform-workflows-go/"
+  remediation:
+    description: "Replace local govulncheck jobs with: uses: ffreis/platform-workflows-go/.github/workflows/go-security.yml@main"

@@ -1,0 +1,201 @@
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-codeowners
+  name: CODEOWNERS file required
+  severity: error
+  tags: [structure, security]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: CODEOWNERS
+  remediation:
+    description: "Add a CODEOWNERS file at the repository root or in .github/"
+    link: "https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-readme
+  name: README.md required
+  severity: warning
+  tags: [structure, docs]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: README.md
+  remediation:
+    description: "Add a README.md at the repository root describing purpose, usage, and runbook links"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-ci-workflow
+  name: CI workflow required
+  severity: error
+  tags: [structure, ci]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: .github/workflows/*.yml
+  remediation:
+    description: "Add a GitHub Actions CI workflow under .github/workflows/"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-gitignore
+  name: .gitignore required
+  severity: warning
+  tags: [structure]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: .gitignore
+  remediation:
+    description: "Add a .gitignore file to prevent committing build artifacts and secrets"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-license
+  name: LICENSE file required
+  severity: warning
+  tags: [structure, legal]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: LICENSE
+  remediation:
+    description: "Add a LICENSE file. Use the organisation-approved licence (typically MIT or Apache-2.0)"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-security-policy
+  name: SECURITY.md required
+  severity: warning
+  tags: [structure, security]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: SECURITY.md
+  remediation:
+    description: "Add a SECURITY.md that describes how to report vulnerabilities"
+    link: "https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-containerfile
+  name: Containerfile or Dockerfile required
+  severity: warning
+  tags: [structure, container]
+spec:
+  type: structure
+  check:
+    composite:
+      operator: OR
+      checks:
+        - file_exists:
+            path: Containerfile
+        - file_exists:
+            path: Dockerfile
+  remediation:
+    description: "Add a Containerfile (podman) or Dockerfile to enable container builds"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-makefile
+  name: Makefile required
+  severity: info
+  tags: [structure, dx]
+spec:
+  type: structure
+  check:
+    file_exists:
+      path: Makefile
+  remediation:
+    description: "Add a Makefile with standard targets: build, test, lint, clean"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: no-ide-files-idea
+  name: JetBrains IDE directory absent
+  severity: error
+  tags: [structure, hygiene]
+spec:
+  type: structure
+  check:
+    file_absent:
+      path: .idea
+  remediation:
+    description: "Remove .idea/ from the repository and add it to .gitignore"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: no-ide-files-vscode
+  name: VSCode settings directory absent
+  severity: warning
+  tags: [structure, hygiene]
+spec:
+  type: structure
+  check:
+    file_absent:
+      path: .vscode
+  remediation:
+    description: "Remove .vscode/ from the repository and add it to .gitignore (exception: shared launch.json is acceptable)"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: no-env-files
+  name: .env files absent
+  severity: error
+  tags: [structure, security]
+spec:
+  type: structure
+  check:
+    file_absent:
+      path: .env
+  remediation:
+    description: "Remove .env file — credentials must never be committed. Use AWS Secrets Manager or SSM Parameter Store"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: no-tfstate-files
+  name: Terraform state files absent
+  severity: error
+  tags: [structure, terraform, security]
+spec:
+  type: structure
+  check:
+    file_absent:
+      path: "*.tfstate"
+  remediation:
+    description: "Remove terraform.tfstate — state must be stored in an S3 remote backend, never committed"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: no-tfstate-backup-files
+  name: Terraform state backup files absent
+  severity: error
+  tags: [structure, terraform, security]
+spec:
+  type: structure
+  check:
+    file_absent:
+      path: "*.tfstate.backup"
+  remediation:
+    description: "Remove terraform.tfstate.backup — state must be stored in an S3 remote backend, never committed"

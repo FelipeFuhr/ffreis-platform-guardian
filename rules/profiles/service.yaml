@@ -1,0 +1,171 @@
+# ─── RuleSets ────────────────────────────────────────────────────────────────
+
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: common-structure
+  name: Common repository structure
+spec:
+  rules:
+    - require-codeowners
+    - require-readme
+    - require-ci-workflow
+    - require-gitignore
+    - require-makefile
+    - no-ide-files-idea
+    - no-env-files
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: security-hygiene
+  name: Security hygiene
+spec:
+  rules:
+    - no-env-files
+    - no-tfstate-files
+    - no-tfstate-backup-files
+    - require-security-policy
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: policy-baseline
+  name: GitHub policy baseline
+spec:
+  rules:
+    - require-branch-protection
+    - require-branch-protection-status-checks
+    - require-squash-merge
+    - no-merge-commit
+    - require-default-branch-main
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: container-baseline
+  name: Container baseline
+spec:
+  rules:
+    - require-containerfile
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: go-baseline
+  name: Go project baseline
+spec:
+  rules:
+    - require-gomod
+    - require-gosum
+    - go-no-vendor-directory
+    - go-module-ffreis-prefix
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: go-ci
+  name: Go CI reuse enforcement
+spec:
+  rules:
+    - require-go-workflow-lint
+    - require-go-workflow-test
+    - require-go-workflow-security
+    - require-go-workflow-fmt
+    - require-golangci-config
+    - go-ci-lint-uses-shared-workflow
+    - go-ci-test-uses-shared-workflow
+    - go-ci-security-uses-shared-workflow
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: terraform-baseline
+  name: Terraform baseline
+spec:
+  rules:
+    - tf-provider-aws-required
+    - tf-provider-aws-version-pinned
+    - tf-backend-s3-required
+    - tf-required-tag-environment
+    - tf-required-tag-team
+    - tf-required-tag-managed-by
+    - tf-variable-environment-required
+---
+apiVersion: guardian/v1
+kind: RuleSet
+metadata:
+  id: terraform-security
+  name: Terraform security
+spec:
+  rules:
+    - tf-no-iam-access-key
+    - tf-no-null-resource
+    - tf-no-aws-classic
+
+# ─── Profiles ─────────────────────────────────────────────────────────────────
+
+---
+apiVersion: guardian/v1
+kind: Profile
+metadata:
+  id: service
+  name: Application service (default for all repos)
+spec:
+  match:
+    topics: []
+  ruleSets:
+    - common-structure
+    - security-hygiene
+    - policy-baseline
+    - container-baseline
+---
+apiVersion: guardian/v1
+kind: Profile
+metadata:
+  id: go-service
+  name: Go application service
+spec:
+  match:
+    languages: [Go]
+  ruleSets:
+    - common-structure
+    - security-hygiene
+    - policy-baseline
+    - container-baseline
+    - go-baseline
+    - go-ci
+---
+apiVersion: guardian/v1
+kind: Profile
+metadata:
+  id: terraform-infra
+  name: Terraform infrastructure repository
+spec:
+  match:
+    topics: [terraform]
+  ruleSets:
+    - common-structure
+    - security-hygiene
+    - policy-baseline
+    - terraform-baseline
+    - terraform-security
+  overrides:
+    - repo: ffreis/legacy-infra
+      disable:
+        - tf-backend-s3-required
+        - tf-provider-aws-version-pinned
+---
+apiVersion: guardian/v1
+kind: Profile
+metadata:
+  id: library
+  name: Shared library
+spec:
+  match:
+    topics: [library]
+  ruleSets:
+    - common-structure
+    - security-hygiene
+    - policy-baseline
+  overrides: []
