@@ -93,51 +93,59 @@ func filterPolicyRules(rules []*rule.Rule) []*rule.Rule {
 	return filtered
 }
 
-func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules []*rule.Rule, snap *scanner.RepoSnapshot) error {
-	needsStructure := false
-	needsContent := false
-	needsTerraform := false
-	needsPolicy := false
+type scanNeeds struct {
+	structure bool
+	content   bool
+	terraform bool
+	policy    bool
+}
 
+func computeScanNeeds(rules []*rule.Rule) scanNeeds {
+	needs := scanNeeds{}
 	for _, r := range rules {
 		switch r.Type {
 		case rule.RuleTypeStructure:
-			needsStructure = true
+			needs.structure = true
 		case rule.RuleTypeContent:
-			needsContent = true
-			needsStructure = true
+			needs.content = true
+			needs.structure = true
 		case rule.RuleTypeTerraform:
-			needsTerraform = true
+			needs.terraform = true
 		case rule.RuleTypePolicy:
-			needsPolicy = true
+			needs.policy = true
 		}
 	}
+	return needs
+}
+
+func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules []*rule.Rule, snap *scanner.RepoSnapshot) error {
+	needs := computeScanNeeds(rules)
 
 	if opts.Token == "" {
 		// Token is optional for public repos. Scanners handle empty tokens (unauthenticated API / clone).
 		e.log.Info("no GitHub token provided, running scanners unauthenticated")
 	}
 
-	if needsStructure {
+	if needs.structure {
 		s := scanner.NewStructureScanner(snap)
 		if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
 			e.log.Warn("structure scanner failed", zap.Error(err))
 		}
 	}
 
-	if needsContent {
+	if needs.content {
 		// Content scanner is lazy; individual files fetched on demand
-		_ = needsContent
+		_ = needs
 	}
 
-	if needsTerraform {
+	if needs.terraform {
 		s := scanner.NewTerraformScanner(snap)
 		if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
 			e.log.Warn("terraform scanner failed", zap.Error(err))
 		}
 	}
 
-	if needsPolicy {
+	if needs.policy {
 		if opts.Token == "" {
 			e.log.Info("no GitHub token provided, skipping policy scanner")
 			return nil
