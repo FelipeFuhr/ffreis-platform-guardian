@@ -95,3 +95,43 @@ func TestEngineCheck_StructureRuleRunsScannerAndEvaluates(t *testing.T) {
 		t.Fatalf("expected Pass, got %s: %s", report.Results[0].Status, report.Results[0].Message)
 	}
 }
+
+func TestEngineCheck_ContentRuleFetchesAndEvaluates(t *testing.T) {
+	origTransport := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+
+	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case strings.Contains(req.URL.Path, "/git/trees/"):
+			return httpResponse(http.StatusOK, `{"tree":[{"path":"README.md","type":"blob"}],"truncated":false}`), nil
+		case strings.Contains(req.URL.Path, "/contents/README.md"):
+			// Return base64-encoded "# Project"
+			return httpResponse(http.StatusOK, `{"content":"IyBQcm9qZWN0","encoding":"base64"}`), nil
+		default:
+			return httpResponse(http.StatusNotFound, ""), nil
+		}
+	})
+
+	reg := rule.NewRegistry()
+	_ = reg.AddRule(&rule.Rule{
+		ID:       "readme-has-header",
+		Name:     "README must have a header",
+		Severity: rule.SeverityError,
+		Type:     rule.RuleTypeContent,
+		Check: rule.CheckSpec{
+			FileContains: &rule.FileContainsCheck{Path: "README.md", Pattern: `^#`},
+		},
+	})
+
+	eng := NewEngine(reg, zap.NewNop())
+	report, err := eng.Check(context.Background(), ScanOptions{Repo: "org/repo"})
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	if len(report.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(report.Results))
+	}
+	if report.Results[0].Status != StatusPass {
+		t.Fatalf("expected Pass (file content fetched), got %s: %s", report.Results[0].Status, report.Results[0].Message)
+	}
+}

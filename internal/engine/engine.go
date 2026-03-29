@@ -134,8 +134,17 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	if needs.content {
-		// Content scanner is lazy; individual files fetched on demand
-		_ = needs
+		// Collect the file paths referenced by all content rules and fetch them
+		// eagerly so that FileContainsChecker/FileNotContainsChecker have data to
+		// work with.  Files that 404 are stored as empty strings (treated as absent).
+		for _, p := range contentPathsFromRules(rules) {
+			content, err := scanner.FetchFile(ctx, opts.Token, opts.Repo, p)
+			if err != nil {
+				e.log.Warn("failed to fetch content file", zap.String("path", p), zap.Error(err))
+				continue
+			}
+			snap.FileContents[p] = content
+		}
 	}
 
 	if needs.terraform {
@@ -157,4 +166,41 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	return nil
+}
+
+// contentPathsFromRules returns the deduplicated set of file paths referenced
+// by all FileContains/FileNotContains checks in the given rules (including
+// nested composite checks).
+func contentPathsFromRules(rules []*rule.Rule) []string {
+	seen := map[string]struct{}{}
+	var paths []string
+	for _, r := range rules {
+		if r.Type != rule.RuleTypeContent {
+			continue
+		}
+		for _, p := range contentPathsFromSpec(r.Check) {
+			if _, ok := seen[p]; !ok {
+				seen[p] = struct{}{}
+				paths = append(paths, p)
+			}
+		}
+	}
+	return paths
+}
+
+// contentPathsFromSpec extracts file paths from a CheckSpec recursively.
+func contentPathsFromSpec(spec rule.CheckSpec) []string {
+	var paths []string
+	if spec.FileContains != nil && spec.FileContains.Path != "" {
+		paths = append(paths, spec.FileContains.Path)
+	}
+	if spec.FileNotContains != nil && spec.FileNotContains.Path != "" {
+		paths = append(paths, spec.FileNotContains.Path)
+	}
+	if spec.Composite != nil {
+		for _, child := range spec.Composite.Checks {
+			paths = append(paths, contentPathsFromSpec(child)...)
+		}
+	}
+	return paths
 }

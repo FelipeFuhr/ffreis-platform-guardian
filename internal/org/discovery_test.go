@@ -77,6 +77,30 @@ func TestMatchesNamePatternInvalidPatternDoesNotMatch(t *testing.T) {
 	}
 }
 
+func TestDiscoverNon200ReturnsErrorWithBody(t *testing.T) {
+	origTransport := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+
+	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusForbidden,
+			Body:       io.NopCloser(bytes.NewReader([]byte(`{"message":"API rate limit exceeded"}`))),
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	_, err := Discover(context.Background(), DiscoveryOptions{Org: "acme"})
+	if err == nil {
+		t.Fatal("expected error for non-200 response, got nil")
+	}
+	if !strings.Contains(err.Error(), "403") {
+		t.Errorf("expected error to contain status code 403, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "rate limit") {
+		t.Errorf("expected error to contain body snippet, got: %v", err)
+	}
+}
+
 func queryPage(rawQuery string) int {
 	for _, part := range strings.Split(rawQuery, "&") {
 		if strings.HasPrefix(part, "page=") {

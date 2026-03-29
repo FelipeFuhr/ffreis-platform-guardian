@@ -53,16 +53,15 @@ func (s *TerraformScanner) Scan(ctx context.Context, token, repo string) error {
 	defer os.RemoveAll(tmpDir)
 
 	cloneURL := fmt.Sprintf("https://github.com/%s.git", repo)
-	if token != "" {
-		cloneURL = fmt.Sprintf("https://x-access-token:%s@github.com/%s.git", token, repo)
-	}
+	// Never embed the token in the clone URL — it can leak via process listings
+	// and git error output.  Pass auth via git's http.extraheader config option instead.
+	authArgs := gitAuthArgs(token)
 
 	ref := s.snapshot.Ref
 	if ref == "" {
 		// Default behavior: shallow clone default branch.
-		cmd := exec.CommandContext(ctx,
-			gitPath, "clone", "--depth", "1", "--quiet", cloneURL, tmpDir,
-		)
+		args := append(authArgs, "clone", "--depth", "1", "--quiet", cloneURL, tmpDir)
+		cmd := exec.CommandContext(ctx, gitPath, args...)
 		cmd.Env = env
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git clone failed: %w\n%s", err, string(out))
@@ -81,7 +80,8 @@ func (s *TerraformScanner) Scan(ctx context.Context, token, repo string) error {
 			return fmt.Errorf("git remote add failed: %w\n%s", err, string(out))
 		}
 
-		fetchCmd := exec.CommandContext(ctx, gitPath, "-C", tmpDir, "fetch", "--depth", "1", "--quiet", "origin", ref)
+		fetchArgs := append(authArgs, "-C", tmpDir, "fetch", "--depth", "1", "--quiet", "origin", ref)
+		fetchCmd := exec.CommandContext(ctx, gitPath, fetchArgs...)
 		fetchCmd.Env = env
 		if out, err := fetchCmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git fetch %s failed: %w\n%s", ref, err, string(out))
@@ -101,4 +101,15 @@ func (s *TerraformScanner) Scan(ctx context.Context, token, repo string) error {
 
 	s.snapshot.TFModules = modules
 	return nil
+}
+
+// gitAuthArgs returns the global git flags needed to authenticate via token
+// without embedding it in the clone URL.  Passing auth via http.extraheader
+// avoids credential exposure in process listings, git remotes, and error logs.
+// Returns nil when token is empty (unauthenticated / public repos).
+func gitAuthArgs(token string) []string {
+	if token == "" {
+		return nil
+	}
+	return []string{"-c", "http.https://github.com/.extraheader=AUTHORIZATION: bearer " + token}
 }
