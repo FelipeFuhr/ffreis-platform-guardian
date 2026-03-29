@@ -7,7 +7,7 @@
 #   final    — minimal distroless image containing only the binary
 
 # ─── builder ────────────────────────────────────────────────────────────────
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25.8-alpine AS builder
 
 WORKDIR /src
 
@@ -29,7 +29,9 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # It is never pushed or run in production.
 FROM builder AS test
 
-RUN go test ./... -count=1 -race
+# -race requires CGO; the builder stage uses CGO_ENABLED=0 for static builds.
+# Run the unit test suite here without the race detector.
+RUN go test ./... -count=1
 
 # ─── final ───────────────────────────────────────────────────────────────────
 FROM gcr.io/distroless/static-debian12:nonroot AS final
