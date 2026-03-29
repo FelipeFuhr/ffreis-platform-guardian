@@ -1,0 +1,98 @@
+name: Guardian
+
+# Runs platform-guardian on every pull request and on pushes to main.
+#
+# On a pull_request:
+#   - Findings are surfaced as inline review annotations (::error / ::warning).
+#   - SARIF is uploaded to GitHub Code Scanning (Security tab).
+#   - The job exits 1 on any error-severity violation, blocking the PR.
+#
+# On push to main:
+#   - Same checks run post-merge to catch drift introduced outside of a PR.
+#   - SARIF upload is the persistent record.
+#
+# No external services are required.  Structure and Terraform checks run
+# without a token; policy checks (branch protection, team permissions) are
+# skipped unless GUARDIAN_TOKEN is configured as a repository secret.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read        # checkout
+  security-events: write # upload SARIF to Code Scanning
+  pull-requests: write  # write inline review annotations on PRs
+
+jobs:
+  guardian:
+    name: Guardian drift check
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          # Fetch the full history so file-existence checks against HEAD are
+          # accurate and the git tree is complete for Terraform scanning.
+          fetch-depth: 0
+
+      # ── 2. Build platform-guardian from source ───────────────────────────
+      # We build inside the repository itself so the binary always matches the
+      # checked-out source.  No Go installation is needed on the runner; the
+      # build happens inside the 'builder' stage of the multi-stage Containerfile.
+      - name: Build guardian binary
+        run: |
+          docker build \
+            --target builder \
+            --tag guardian-builder:local \
+            --file Containerfile \
+            .
+          # Extract the compiled binary from the builder image into the runner.
+          docker create --name guardian-extract guardian-builder:local
+          docker cp guardian-extract:/bin/platform-guardian /usr/local/bin/platform-guardian
+          docker rm guardian-extract
+          chmod +x /usr/local/bin/platform-guardian
+
+      # ── 3. Run guardian — GitHub Annotations ────────────────────────────
+      # Findings are emitted as ::error / ::warning annotation lines.
+      # GitHub Actions renders these as inline PR review comments on the
+      # Files changed tab.  The step fails on error-severity violations.
+      - name: Run guardian (annotations)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN }}
+        run: |
+          platform-guardian check \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.sha }}" \
+            --rules ./rules/ \
+            --token "$GITHUB_TOKEN" \
+            --format github-annotations \
+            --fail-on error
+
+      # ── 4. Run guardian — SARIF output ──────────────────────────────────
+      # A second pass produces SARIF.  We always run this (even if step 3
+      # failed) so the Security tab is populated with current findings.
+      # Exit code is ignored here; the annotation step above is the gate.
+      - name: Run guardian (SARIF)
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN }}
+        run: |
+          platform-guardian check \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.sha }}" \
+            --rules ./rules/ \
+            --token "$GITHUB_TOKEN" \
+            --format sarif \
+            --fail-on error \
+            > guardian-report.sarif || true
+
+      # ── 5. Upload SARIF to Code Scanning ─────────────────────────────────
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: guardian-report.sarif
+          category: platform-guardian

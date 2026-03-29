@@ -1,0 +1,80 @@
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-branch-protection
+  name: Main branch protection required
+  severity: error
+  tags: [policy, security]
+spec:
+  type: policy
+  check:
+    gh_branch_protection:
+      branch: main
+      require_pr_reviews: true
+  remediation:
+    description: "Enable branch protection on 'main' with required PR reviews"
+    link: "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-branch-protection-status-checks
+  name: Status checks required on main
+  severity: error
+  tags: [policy, ci]
+spec:
+  type: policy
+  check:
+    gh_branch_protection:
+      branch: main
+      require_status_checks: true
+  remediation:
+    description: "Enable 'Require status checks to pass before merging' on main branch protection"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-squash-merge
+  name: Squash merge must be enabled
+  severity: warning
+  tags: [policy, hygiene]
+spec:
+  type: policy
+  check:
+    gh_repo_setting:
+      field: allow_squash_merge
+      value: "true"
+  remediation:
+    description: "Enable squash merging in repository settings to keep the main branch history clean"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: no-merge-commit
+  name: Merge commits must be disabled
+  severity: warning
+  tags: [policy, hygiene]
+spec:
+  type: policy
+  check:
+    gh_repo_setting:
+      field: allow_merge_commit
+      value: "false"
+  remediation:
+    description: "Disable merge commits in repository settings — prefer squash or rebase"
+---
+apiVersion: guardian/v1
+kind: Rule
+metadata:
+  id: require-default-branch-main
+  name: Default branch must be 'main'
+  severity: error
+  tags: [policy, hygiene]
+spec:
+  type: policy
+  check:
+    gh_repo_setting:
+      field: default_branch
+      value: main
+  remediation:
+    description: "Rename the default branch to 'main' via repository settings"

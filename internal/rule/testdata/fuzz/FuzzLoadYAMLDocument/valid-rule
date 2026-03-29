@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("apiVersion: guardian/v1\nkind: Rule\nmetadata:\n  id: seed-rule\n  name: Seed Rule\n  severity: error\nspec:\n  type: structure\n  check:\n    file_exists:\n      path: .golangci.yml\n")
