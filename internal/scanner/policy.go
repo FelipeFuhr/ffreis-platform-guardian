@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -35,7 +36,7 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	}
 	if err := s.fetchBranchProtection(ctx, token, repo, defaultBranch); err != nil {
 		// Not fatal
-		fmt.Printf("warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
+		fmt.Fprintf(os.Stderr, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
 	}
 
 	// Fetch team permissions
@@ -43,7 +44,7 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	if len(parts) == 2 {
 		org := parts[0]
 		if err := s.fetchTeamPermissions(ctx, token, org, repo); err != nil {
-			fmt.Printf("warning: could not fetch team permissions: %v\n", err)
+			fmt.Fprintf(os.Stderr, "warning: could not fetch team permissions: %v\n", err)
 		}
 	}
 

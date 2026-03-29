@@ -94,9 +94,8 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	if opts.Token == "" {
-		// No token — skip real API calls but log it
-		e.log.Warn("no GitHub token provided, skipping API scanners")
-		return nil
+		// Token is optional for public repos. Scanners handle empty tokens (unauthenticated API / clone).
+		e.log.Info("no GitHub token provided, running scanners unauthenticated")
 	}
 
 	if needsStructure {
@@ -119,6 +118,10 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	if needsPolicy {
+		if opts.Token == "" {
+			e.log.Info("no GitHub token provided, skipping policy scanner")
+			return nil
+		}
 		s := scanner.NewPolicyScanner(snap)
 		if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
 			e.log.Warn("policy scanner failed", zap.Error(err))

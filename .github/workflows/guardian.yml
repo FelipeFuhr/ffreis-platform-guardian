@@ -61,7 +61,7 @@ jobs:
       # Files changed tab.  The step fails on error-severity violations.
       - name: Run guardian (annotations)
         env:
-          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN }}
         run: |
           platform-guardian check \
             --repo "${{ github.repository }}" \
@@ -77,7 +77,7 @@ jobs:
       - name: Run guardian (SARIF)
         if: always()
         env:
-          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN }}
         run: |
           platform-guardian check \
             --repo "${{ github.repository }}" \
@@ -90,7 +90,7 @@ jobs:
       # ── 5. Upload SARIF to Code Scanning ─────────────────────────────────
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: guardian-report.sarif
           category: platform-guardian
