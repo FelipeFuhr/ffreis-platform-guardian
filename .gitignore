@@ -8,6 +8,10 @@
 *.so
 *.dylib
 
+# Build output
+platform-guardian
+dist/
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -27,9 +31,28 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# Secrets and config — never commit these
 .env
+.env.*
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.backup
+secrets.*
+*secret*
+*credentials*
+
+# SARIF and scan output
+*.sarif
+guardian-report.*
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

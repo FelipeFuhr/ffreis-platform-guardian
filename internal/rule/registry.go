@@ -21,6 +21,12 @@ func NewRegistry() *Registry {
 	}
 }
 
+// GetRule returns the Rule with the given ID, and whether it was found.
+func (r *Registry) GetRule(id string) (*Rule, bool) {
+	rule, ok := r.Rules[id]
+	return rule, ok
+}
+
 func (r *Registry) AddRule(rule *Rule) error {
 	if _, exists := r.Rules[rule.ID]; exists {
 		return fmt.Errorf("duplicate rule ID: %s", rule.ID)

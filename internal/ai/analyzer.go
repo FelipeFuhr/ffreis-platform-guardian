@@ -30,6 +30,12 @@ type Pattern struct {
 type Suggestion struct {
 	// RuleID this suggestion addresses.
 	RuleID string
+	// RuleName is the human-readable name of the rule (populated when a registry is provided).
+	RuleName string
+	// Severity of the rule (populated when a registry is provided).
+	Severity string
+	// Tags associated with the rule (populated when a registry is provided).
+	Tags []string
 	// AffectedRepos lists repos that fail this rule.
 	AffectedRepos []string
 	// Remediation is the rule's own remediation text.
@@ -61,9 +67,8 @@ func Analyze(report *engine.ScanReport, registry ruleGetter) *Analysis {
 	addCorrelatedFailures(analysis, report)
 	addCompliantRepos(analysis, repoStats)
 
-	analysis.Suggestions = buildSuggestions(report, ruleCounts)
+	analysis.Suggestions = buildSuggestions(report, ruleCounts, registry)
 
-	_ = registry
 	return analysis
 }
 
@@ -153,18 +158,26 @@ type ruleFailCount struct {
 	count int
 }
 
-func buildSuggestions(report *engine.ScanReport, ruleCounts map[string]int) []Suggestion {
+func buildSuggestions(report *engine.ScanReport, ruleCounts map[string]int, registry ruleGetter) []Suggestion {
 	ranked := rankRulesByFailures(ruleCounts)
 
 	suggestions := make([]Suggestion, 0, len(ranked))
 	for _, entry := range ranked {
 		repos := reposFailingRule(report, entry.id)
 		remediation := remediationForRule(report, entry.id)
-		suggestions = append(suggestions, Suggestion{
+		s := Suggestion{
 			RuleID:        entry.id,
 			AffectedRepos: repos,
 			Remediation:   remediation,
-		})
+		}
+		if registry != nil {
+			if r, ok := registry.GetRule(entry.id); ok {
+				s.RuleName = r.Name
+				s.Severity = string(r.Severity)
+				s.Tags = r.Tags
+			}
+		}
+		suggestions = append(suggestions, s)
 	}
 
 	return suggestions

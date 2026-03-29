@@ -135,8 +135,39 @@ func TestFormatAnalysisNoPatterns(t *testing.T) {
 	}
 }
 
+func TestAnalyzeSuggestionsEnrichedFromRegistry(t *testing.T) {
+	report := &engine.ScanReport{
+		Results: []engine.RuleResult{
+			makeResult("org/a", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
+		},
+	}
+
+	reg := rule.NewRegistry()
+	_ = reg.AddRule(&rule.Rule{
+		ID:       ruleRequireReadme,
+		Name:     "Require README",
+		Severity: rule.SeverityError,
+		Tags:     []string{"docs", "structure"},
+	})
+
+	analysis := Analyze(report, reg)
+
+	if len(analysis.Suggestions) == 0 {
+		t.Fatal("expected at least one suggestion")
+	}
+	s := analysis.Suggestions[0]
+	if s.RuleName != "Require README" {
+		t.Errorf("expected RuleName %q, got %q", "Require README", s.RuleName)
+	}
+	if s.Severity != string(rule.SeverityError) {
+		t.Errorf("expected Severity %q, got %q", rule.SeverityError, s.Severity)
+	}
+	if len(s.Tags) != 2 || s.Tags[0] != "docs" {
+		t.Errorf("expected Tags [docs structure], got %v", s.Tags)
+	}
+}
+
 func TestCorrelatedRules(t *testing.T) {
-	// r1 and r2 always fail together in two repos; r3 fails alone
 	report := &engine.ScanReport{
 		Results: []engine.RuleResult{
 			makeResult("org/a", "r1", rule.SeverityError, engine.StatusFail, ""),
