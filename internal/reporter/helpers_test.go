@@ -2,7 +2,7 @@ package reporter
 
 import "testing"
 
-func TestSortedRuleCounts_SortsByCountDescThenID(t *testing.T) {
+func TestSortedRuleCountsSortsByCountDescThenID(t *testing.T) {
 	in := map[string]int{
 		"b": 2,
 		"a": 2,

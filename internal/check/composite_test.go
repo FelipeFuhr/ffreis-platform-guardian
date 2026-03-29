@@ -22,7 +22,7 @@ func compositeSnap() *scanner.RepoSnapshot {
 	return scanner.NewSnapshot("test/repo")
 }
 
-func TestCompositeAND_AllPass(t *testing.T) {
+func TestCompositeANDAllPass(t *testing.T) {
 	checker := &CompositeChecker{
 		Operator: "AND",
 		Checks:   []Checker{&alwaysPass{}, &alwaysPass{}, &alwaysPass{}},
@@ -33,7 +33,7 @@ func TestCompositeAND_AllPass(t *testing.T) {
 	}
 }
 
-func TestCompositeAND_OneFails(t *testing.T) {
+func TestCompositeANDOneFails(t *testing.T) {
 	checker := &CompositeChecker{
 		Operator: "AND",
 		Checks:   []Checker{&alwaysPass{}, &alwaysFail{}, &alwaysPass{}},
@@ -44,7 +44,7 @@ func TestCompositeAND_OneFails(t *testing.T) {
 	}
 }
 
-func TestCompositeOR_OnePasses(t *testing.T) {
+func TestCompositeOROnePasses(t *testing.T) {
 	checker := &CompositeChecker{
 		Operator: "OR",
 		Checks:   []Checker{&alwaysFail{}, &alwaysPass{}, &alwaysFail{}},
@@ -55,7 +55,7 @@ func TestCompositeOR_OnePasses(t *testing.T) {
 	}
 }
 
-func TestCompositeOR_AllFail(t *testing.T) {
+func TestCompositeORAllFail(t *testing.T) {
 	checker := &CompositeChecker{
 		Operator: "OR",
 		Checks:   []Checker{&alwaysFail{}, &alwaysFail{}},
@@ -66,7 +66,7 @@ func TestCompositeOR_AllFail(t *testing.T) {
 	}
 }
 
-func TestCompositeNOT_Inverts(t *testing.T) {
+func TestCompositeNOTInverts(t *testing.T) {
 	// NOT(fail) → pass
 	checkerPass := &CompositeChecker{
 		Operator: "NOT",

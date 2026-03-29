@@ -7,6 +7,13 @@ import (
 	"github.com/ffreis/platform-guardian/internal/rule"
 )
 
+const (
+	remediationAddReadme = "Add README.md"
+	ruleRequireReadme    = "require-readme"
+	repoClean            = "org/clean"
+	repoTroubled         = "org/troubled"
+)
+
 func makeResult(repo, ruleID string, sev rule.Severity, status engine.CheckStatus, remediation string) engine.RuleResult {
 	return engine.RuleResult{
 		Repo: repo,
@@ -19,12 +26,12 @@ func makeResult(repo, ruleID string, sev rule.Severity, status engine.CheckStatu
 	}
 }
 
-func TestAnalyze_SystemicViolation(t *testing.T) {
+func TestAnalyzeSystemicViolation(t *testing.T) {
 	// Two repos both fail the same rule → systemic violation
 	report := &engine.ScanReport{
 		Results: []engine.RuleResult{
-			makeResult("org/a", "require-readme", rule.SeverityError, engine.StatusFail, "Add README.md"),
-			makeResult("org/b", "require-readme", rule.SeverityError, engine.StatusFail, "Add README.md"),
+			makeResult("org/a", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
+			makeResult("org/b", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
 		},
 	}
 
@@ -41,12 +48,12 @@ func TestAnalyze_SystemicViolation(t *testing.T) {
 	}
 }
 
-func TestAnalyze_CompliantRepo(t *testing.T) {
+func TestAnalyzeCompliantRepo(t *testing.T) {
 	report := &engine.ScanReport{
 		Results: []engine.RuleResult{
-			makeResult("org/clean", "require-readme", rule.SeverityError, engine.StatusPass, ""),
-			makeResult("org/clean", "require-ci", rule.SeverityError, engine.StatusPass, ""),
-			makeResult("org/dirty", "require-readme", rule.SeverityError, engine.StatusFail, "Add README.md"),
+			makeResult(repoClean, ruleRequireReadme, rule.SeverityError, engine.StatusPass, ""),
+			makeResult(repoClean, "require-ci", rule.SeverityError, engine.StatusPass, ""),
+			makeResult("org/dirty", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
 		},
 	}
 
@@ -56,24 +63,24 @@ func TestAnalyze_CompliantRepo(t *testing.T) {
 	for _, p := range analysis.Patterns {
 		if p.Kind == "fully-compliant" {
 			for _, repo := range p.Repos {
-				if repo == "org/clean" {
+				if repo == repoClean {
 					found = true
 				}
 			}
 		}
 	}
 	if !found {
-		t.Error("expected org/clean to appear in fully-compliant pattern")
+		t.Error("expected clean repo to appear in fully-compliant pattern")
 	}
 }
 
-func TestAnalyze_WidespreadFailure(t *testing.T) {
+func TestAnalyzeWidespreadFailure(t *testing.T) {
 	// 9 fail, 1 pass → 90% failure rate
 	results := make([]engine.RuleResult, 10)
 	for i := 0; i < 9; i++ {
-		results[i] = makeResult("org/troubled", "r"+string(rune('a'+i)), rule.SeverityError, engine.StatusFail, "")
+		results[i] = makeResult(repoTroubled, "r"+string(rune('a'+i)), rule.SeverityError, engine.StatusFail, "")
 	}
-	results[9] = makeResult("org/troubled", "r-pass", rule.SeverityWarning, engine.StatusPass, "")
+	results[9] = makeResult(repoTroubled, "r-pass", rule.SeverityWarning, engine.StatusPass, "")
 
 	report := &engine.ScanReport{Results: results}
 	analysis := Analyze(report, nil)
@@ -82,24 +89,24 @@ func TestAnalyze_WidespreadFailure(t *testing.T) {
 	for _, p := range analysis.Patterns {
 		if p.Kind == "widespread-failure" {
 			for _, repo := range p.Repos {
-				if repo == "org/troubled" {
+				if repo == repoTroubled {
 					found = true
 				}
 			}
 		}
 	}
 	if !found {
-		t.Error("expected org/troubled to be flagged as widespread-failure")
+		t.Error("expected troubled repo to be flagged as widespread-failure")
 	}
 }
 
-func TestAnalyze_SuggestionsOrdered(t *testing.T) {
+func TestAnalyzeSuggestionsOrdered(t *testing.T) {
 	// require-readme fails in 3 repos, require-ci fails in 1 → readme should be first
 	report := &engine.ScanReport{
 		Results: []engine.RuleResult{
-			makeResult("org/a", "require-readme", rule.SeverityError, engine.StatusFail, "Add README.md"),
-			makeResult("org/b", "require-readme", rule.SeverityError, engine.StatusFail, "Add README.md"),
-			makeResult("org/c", "require-readme", rule.SeverityError, engine.StatusFail, "Add README.md"),
+			makeResult("org/a", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
+			makeResult("org/b", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
+			makeResult("org/c", ruleRequireReadme, rule.SeverityError, engine.StatusFail, remediationAddReadme),
 			makeResult("org/a", "require-ci", rule.SeverityError, engine.StatusFail, "Add CI workflow"),
 		},
 	}
@@ -109,19 +116,19 @@ func TestAnalyze_SuggestionsOrdered(t *testing.T) {
 	if len(analysis.Suggestions) < 2 {
 		t.Fatalf("expected at least 2 suggestions, got %d", len(analysis.Suggestions))
 	}
-	if analysis.Suggestions[0].RuleID != "require-readme" {
+	if analysis.Suggestions[0].RuleID != ruleRequireReadme {
 		t.Errorf("expected require-readme first (most repos), got %q", analysis.Suggestions[0].RuleID)
 	}
 }
 
-func TestAnalyze_EmptyReport(t *testing.T) {
+func TestAnalyzeEmptyReport(t *testing.T) {
 	analysis := Analyze(&engine.ScanReport{}, nil)
 	if len(analysis.Patterns) != 0 || len(analysis.Suggestions) != 0 {
 		t.Error("expected empty analysis for empty report")
 	}
 }
 
-func TestFormatAnalysis_NoPatterns(t *testing.T) {
+func TestFormatAnalysisNoPatterns(t *testing.T) {
 	out := FormatAnalysis(&Analysis{})
 	if out == "" {
 		t.Error("expected non-empty output")

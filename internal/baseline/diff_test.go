@@ -7,6 +7,12 @@ import (
 	"github.com/ffreis/platform-guardian/internal/rule"
 )
 
+const (
+	testGeneratedAt = "2024-01-01T00:00:00Z"
+	testRepo        = "org/repo"
+	testRuleID      = "rule-1"
+)
+
 func makeResult(repo, ruleID string, status engine.CheckStatus) engine.RuleResult {
 	return engine.RuleResult{
 		Repo: repo,
@@ -21,14 +27,14 @@ func makeResult(repo, ruleID string, status engine.CheckStatus) engine.RuleResul
 func makeReport(results ...engine.RuleResult) *engine.ScanReport {
 	return &engine.ScanReport{
 		RunID:       "test-run",
-		GeneratedAt: "2024-01-01T00:00:00Z",
+		GeneratedAt: testGeneratedAt,
 		Results:     results,
 	}
 }
 
-func TestFilterNew_NewFailure(t *testing.T) {
+func TestFilterNewNewFailure(t *testing.T) {
 	b := &Baseline{Entries: []Entry{}}
-	report := makeReport(makeResult("org/repo", "rule-1", engine.StatusFail))
+	report := makeReport(makeResult(testRepo, testRuleID, engine.StatusFail))
 
 	filtered := FilterNew(report, b)
 	if len(filtered.Results) != 1 {
@@ -36,13 +42,13 @@ func TestFilterNew_NewFailure(t *testing.T) {
 	}
 }
 
-func TestFilterNew_ExistingFailure(t *testing.T) {
+func TestFilterNewExistingFailure(t *testing.T) {
 	b := &Baseline{
 		Entries: []Entry{
-			{Repo: "org/repo", RuleID: "rule-1", Status: "fail", FirstSeen: "2024-01-01T00:00:00Z"},
+			{Repo: testRepo, RuleID: testRuleID, Status: "fail", FirstSeen: testGeneratedAt},
 		},
 	}
-	report := makeReport(makeResult("org/repo", "rule-1", engine.StatusFail))
+	report := makeReport(makeResult(testRepo, testRuleID, engine.StatusFail))
 
 	filtered := FilterNew(report, b)
 	if len(filtered.Results) != 0 {
@@ -50,14 +56,14 @@ func TestFilterNew_ExistingFailure(t *testing.T) {
 	}
 }
 
-func TestFilterNew_ResolvedPass(t *testing.T) {
+func TestFilterNewResolvedPass(t *testing.T) {
 	b := &Baseline{
 		Entries: []Entry{
-			{Repo: "org/repo", RuleID: "rule-1", Status: "fail", FirstSeen: "2024-01-01T00:00:00Z"},
+			{Repo: testRepo, RuleID: testRuleID, Status: "fail", FirstSeen: testGeneratedAt},
 		},
 	}
 	// Now it passes
-	report := makeReport(makeResult("org/repo", "rule-1", engine.StatusPass))
+	report := makeReport(makeResult(testRepo, testRuleID, engine.StatusPass))
 
 	filtered := FilterNew(report, b)
 	// Pass results are included in output (they're not new failures)
@@ -69,27 +75,27 @@ func TestFilterNew_ResolvedPass(t *testing.T) {
 	}
 }
 
-func TestUpdate_AddsNewEntry(t *testing.T) {
+func TestUpdateAddsNewEntry(t *testing.T) {
 	b := &Baseline{Entries: []Entry{}}
-	report := makeReport(makeResult("org/repo", "rule-1", engine.StatusFail))
+	report := makeReport(makeResult(testRepo, testRuleID, engine.StatusFail))
 
 	updated := Update(b, report)
 	if len(updated.Entries) != 1 {
 		t.Errorf("expected 1 entry in updated baseline, got %d", len(updated.Entries))
 	}
-	if updated.Entries[0].RuleID != "rule-1" {
-		t.Errorf("expected rule-1, got %s", updated.Entries[0].RuleID)
+	if updated.Entries[0].RuleID != testRuleID {
+		t.Errorf("expected %s, got %s", testRuleID, updated.Entries[0].RuleID)
 	}
 }
 
-func TestUpdate_RemovesResolvedEntry(t *testing.T) {
+func TestUpdateRemovesResolvedEntry(t *testing.T) {
 	b := &Baseline{
 		Entries: []Entry{
-			{Repo: "org/repo", RuleID: "rule-1", Status: "fail", FirstSeen: "2024-01-01T00:00:00Z"},
+			{Repo: testRepo, RuleID: testRuleID, Status: "fail", FirstSeen: testGeneratedAt},
 		},
 	}
 	// Rule now passes
-	report := makeReport(makeResult("org/repo", "rule-1", engine.StatusPass))
+	report := makeReport(makeResult(testRepo, testRuleID, engine.StatusPass))
 
 	updated := Update(b, report)
 	if len(updated.Entries) != 0 {

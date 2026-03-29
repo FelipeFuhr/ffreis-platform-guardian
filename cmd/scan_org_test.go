@@ -8,16 +8,18 @@ import (
 	"github.com/ffreis/platform-guardian/internal/engine"
 )
 
-func TestResolveGitHubToken_UsesFlagFirst(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "env-token")
+const testEnvToken = "env-token"
+
+func TestResolveGitHubTokenUsesFlagFirst(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", testEnvToken)
 	if got := resolveGitHubToken("flag-token"); got != "flag-token" {
 		t.Fatalf("expected flag token, got %q", got)
 	}
 }
 
-func TestResolveGitHubToken_FallsBackToEnv(t *testing.T) {
-	t.Setenv("GITHUB_TOKEN", "env-token")
-	if got := resolveGitHubToken(""); got != "env-token" {
+func TestResolveGitHubTokenFallsBackToEnv(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", testEnvToken)
+	if got := resolveGitHubToken(""); got != testEnvToken {
 		t.Fatalf("expected env token, got %q", got)
 	}
 }
@@ -36,7 +38,7 @@ func TestSetReportMetadata(t *testing.T) {
 	}
 }
 
-func TestLoadAndValidateRegistry_InvalidPathErrors(t *testing.T) {
+func TestLoadAndValidateRegistryInvalidPathErrors(t *testing.T) {
 	// Smoke test: passing a non-existent path must error.
 	f, err := os.CreateTemp("", "stderr-*")
 	if err != nil {

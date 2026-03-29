@@ -2,6 +2,8 @@ package hcl
 
 import "testing"
 
+const mainTF = "main.tf"
+
 // FuzzParseFile exercises the HCL parser with arbitrary byte sequences.
 //
 // Invariants verified:
@@ -10,13 +12,13 @@ import "testing"
 //   - Parse errors must only be returned when the content is genuinely invalid
 func FuzzParseFile(f *testing.F) {
 	// Seed corpus: representative valid HCL patterns
-	f.Add("main.tf", ``)
-	f.Add("main.tf", `terraform {}`)
-	f.Add("main.tf", `
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
+	f.Add(mainTF, ``)
+	f.Add(mainTF, `terraform {}`)
+	f.Add(mainTF, `
+	terraform {
+	  required_providers {
+	    aws = {
+	      source  = "hashicorp/aws"
       version = ">= 5.0"
     }
   }

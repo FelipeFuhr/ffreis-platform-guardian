@@ -10,11 +10,13 @@ import (
 	"testing"
 )
 
+const testRepo = "acme/repo"
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
-func TestDiscover_FiltersAndPagination(t *testing.T) {
+func TestDiscoverFiltersAndPagination(t *testing.T) {
 	origTransport := http.DefaultClient.Transport
 	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
 
@@ -61,16 +63,16 @@ func TestDiscover_FiltersAndPagination(t *testing.T) {
 	}
 }
 
-func TestMatchesFilters_TopicOR(t *testing.T) {
-	info := RepoInfo{FullName: "acme/repo", Topics: []string{"a", "b"}}
+func TestMatchesFiltersTopicOR(t *testing.T) {
+	info := RepoInfo{FullName: testRepo, Topics: []string{"a", "b"}}
 	opts := DiscoveryOptions{IncludeArchived: true, IncludeForks: true, Topics: []string{"x", "b"}}
 	if !matchesFilters(info, opts) {
 		t.Error("expected match when any filter topic is present")
 	}
 }
 
-func TestMatchesNamePattern_InvalidPatternDoesNotMatch(t *testing.T) {
-	if matchesNamePattern("acme/repo", "[") {
+func TestMatchesNamePatternInvalidPatternDoesNotMatch(t *testing.T) {
+	if matchesNamePattern(testRepo, "[") {
 		t.Error("expected invalid glob to not match")
 	}
 }

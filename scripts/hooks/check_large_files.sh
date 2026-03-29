@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IFS=$'\n\t'
 
 source "$(dirname "$0")/../lib/common.sh"
 
@@ -10,8 +9,8 @@ has_error=0
 common_require_git_repo
 
 is_allowlisted() {
-  common_is_allowlisted_path \"$1\"
-  return $?
+  local path="$1"
+  common_is_allowlisted_path "$path"
 }
 
 while IFS= read -r -d '' file; do

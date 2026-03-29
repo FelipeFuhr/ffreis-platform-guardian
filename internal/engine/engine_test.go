@@ -38,7 +38,7 @@ func makeRegistry(rules ...*rule.Rule) *rule.Registry {
 	return reg
 }
 
-func TestCheck_AllPass(t *testing.T) {
+func TestCheckAllPass(t *testing.T) {
 	// Use an in-memory snapshot with a file that exists
 	snap := scanner.NewSnapshot(testRepo)
 	snap.FilePaths = []string{fileReadme, fileMakefile}
@@ -76,7 +76,7 @@ func TestCheck_AllPass(t *testing.T) {
 	_ = eng
 }
 
-func TestCheck_OneFails(t *testing.T) {
+func TestCheckOneFails(t *testing.T) {
 	snap := scanner.NewSnapshot(testRepo)
 	snap.FilePaths = []string{fileReadme} // Makefile absent
 
@@ -104,7 +104,7 @@ func TestCheck_OneFails(t *testing.T) {
 	}
 }
 
-func TestCheck_ScopeExclusion(t *testing.T) {
+func TestCheckScopeExclusion(t *testing.T) {
 	snap := scanner.NewSnapshot(testRepoScope)
 	snap.FilePaths = []string{} // no files
 

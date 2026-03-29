@@ -6,24 +6,26 @@ import (
 	"github.com/ffreis/platform-guardian/internal/scanner"
 )
 
+const readmePath = "README.md"
+
 func mockSnapshot() *scanner.RepoSnapshot {
 	snap := scanner.NewSnapshot("test/repo")
 	snap.FilePaths = []string{
-		"README.md",
+		readmePath,
 		"Makefile",
 		".github/workflows/ci.yml",
 		"src/main.go",
 	}
 	snap.FileContents = map[string]string{
-		"README.md": "# My Project\nThis is a test project.\nVersion: 1.0.0",
-		"Makefile":  "build:\n\tgo build ./...",
+		readmePath: "# My Project\nThis is a test project.\nVersion: 1.0.0",
+		"Makefile": "build:\n\tgo build ./...",
 	}
 	return snap
 }
 
 func TestFileExistsPass(t *testing.T) {
 	snap := mockSnapshot()
-	checker := &FileExistsChecker{Path: "README.md"}
+	checker := &FileExistsChecker{Path: readmePath}
 	result := checker.Evaluate(snap)
 	if result.Status != Pass {
 		t.Errorf("expected Pass, got %s: %s", result.Status, result.Message)
@@ -50,7 +52,7 @@ func TestFileExistsGlob(t *testing.T) {
 
 func TestFileContainsPass(t *testing.T) {
 	snap := mockSnapshot()
-	checker := &FileContainsChecker{Path: "README.md", Pattern: "Version: [0-9]+"}
+	checker := &FileContainsChecker{Path: readmePath, Pattern: "Version: [0-9]+"}
 	result := checker.Evaluate(snap)
 	if result.Status != Pass {
 		t.Errorf("expected Pass, got %s: %s", result.Status, result.Message)
@@ -59,7 +61,7 @@ func TestFileContainsPass(t *testing.T) {
 
 func TestFileContainsFail(t *testing.T) {
 	snap := mockSnapshot()
-	checker := &FileContainsChecker{Path: "README.md", Pattern: "NONEXISTENT_PATTERN_XYZ"}
+	checker := &FileContainsChecker{Path: readmePath, Pattern: "NONEXISTENT_PATTERN_XYZ"}
 	result := checker.Evaluate(snap)
 	if result.Status != Fail {
 		t.Errorf("expected Fail, got %s: %s", result.Status, result.Message)

@@ -16,6 +16,8 @@ const (
 	backendS3Type    = "s3"
 	backendBucketKey = "bucket"
 	backendBucket    = "my-state-bucket"
+
+	passResultFmt = "expected Pass, got %s: %s"
 )
 
 func tfMockSnapshot() *scanner.RepoSnapshot {
@@ -69,7 +71,7 @@ func TestTFProviderRequiredPass(t *testing.T) {
 	checker := &TFProviderReqChecker{Source: providerAWS}
 	result := checker.Evaluate(snap)
 	if result.Status != Pass {
-		t.Errorf("expected Pass, got %s: %s", result.Status, result.Message)
+		t.Errorf(passResultFmt, result.Status, result.Message)
 	}
 }
 
@@ -90,7 +92,7 @@ func TestTFBackendConfigPass(t *testing.T) {
 	}
 	result := checker.Evaluate(snap)
 	if result.Status != Pass {
-		t.Errorf("expected Pass, got %s: %s", result.Status, result.Message)
+		t.Errorf(passResultFmt, result.Status, result.Message)
 	}
 }
 
@@ -112,11 +114,11 @@ func TestTFResourceForbidFail(t *testing.T) {
 	}
 }
 
-// TestTFProviderVersionConstraint_WrongVersionFails ensures that a required
+// TestTFProviderVersionConstraintWrongVersionFails ensures that a required
 // version that does not appear in the provider's declared version string causes
 // a failure. This is a regression test for the bug where || p.Version != ""
 // made the check always pass for any provider with any version.
-func TestTFProviderVersionConstraint_WrongVersionFails(t *testing.T) {
+func TestTFProviderVersionConstraintWrongVersionFails(t *testing.T) {
 	snap := tfMockSnapshot() // provider hashicorp/aws version ">= 4.0"
 	checker := &TFProviderReqChecker{Source: providerAWS, Version: ">= 5.0"}
 	result := checker.Evaluate(snap)
@@ -125,7 +127,7 @@ func TestTFProviderVersionConstraint_WrongVersionFails(t *testing.T) {
 	}
 }
 
-func TestTFProviderVersionConstraint_MatchingVersionPasses(t *testing.T) {
+func TestTFProviderVersionConstraintMatchingVersionPasses(t *testing.T) {
 	snap := tfMockSnapshot() // provider hashicorp/aws version ">= 4.0"
 	checker := &TFProviderReqChecker{Source: providerAWS, Version: ">= 4.0"}
 	result := checker.Evaluate(snap)
@@ -155,7 +157,7 @@ func TestTFVariableRequiredPass(t *testing.T) {
 	checker := &TFVariableReqChecker{Name: "environment"}
 	result := checker.Evaluate(snap)
 	if result.Status != Pass {
-		t.Errorf("expected Pass, got %s: %s", result.Status, result.Message)
+		t.Errorf(passResultFmt, result.Status, result.Message)
 	}
 }
 

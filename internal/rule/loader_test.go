@@ -7,6 +7,7 @@ import (
 )
 
 const testFilePerm = 0o644
+const loadReturnedErrFmt = "Load returned error: %v"
 
 func writeRuleFile(t *testing.T, dir, name, content string) string {
 	t.Helper()
@@ -38,7 +39,7 @@ spec:
 
 	reg, err := Load([]string{dir})
 	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
+		t.Fatalf(loadReturnedErrFmt, err)
 	}
 
 	rule, ok := reg.Rules["test-rule-1"]
@@ -82,7 +83,7 @@ spec:
 
 	reg, err := Load([]string{dir})
 	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
+		t.Fatalf(loadReturnedErrFmt, err)
 	}
 
 	rs, ok := reg.RuleSets["my-ruleset"]
@@ -124,7 +125,7 @@ spec:
 
 	reg, err := Load([]string{dir})
 	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
+		t.Fatalf(loadReturnedErrFmt, err)
 	}
 
 	if _, ok := reg.Rules["doc-rule-1"]; !ok {
@@ -157,7 +158,7 @@ spec:
 	writeRuleFile(t, dir, "tfvar.yaml", content)
 	reg, err := Load([]string{dir})
 	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
+		t.Fatalf(loadReturnedErrFmt, err)
 	}
 	r, ok := reg.Rules["tf-var-env-required"]
 	if !ok {
@@ -186,7 +187,7 @@ func TestLoadFullRuleLibrary(t *testing.T) {
 
 	reg, err := Load([]string{rulesDir})
 	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
+		t.Fatalf(loadReturnedErrFmt, err)
 	}
 
 	if len(reg.Rules) == 0 {
@@ -233,7 +234,7 @@ spec:
 	writeRuleFile(t, dir, "composite.yaml", content)
 	reg, err := Load([]string{dir})
 	if err != nil {
-		t.Fatalf("Load returned error: %v", err)
+		t.Fatalf(loadReturnedErrFmt, err)
 	}
 	r, ok := reg.Rules["composite-test"]
 	if !ok {
@@ -273,7 +274,7 @@ func TestValidateInvalidCompositeOperator(t *testing.T) {
 
 // TestEffectiveRules_ProfileMatch verifies that a profile with topic matching
 // returns only its declared rules for a matching repo.
-func TestEffectiveRules_ProfileMatch(t *testing.T) {
+func TestEffectiveRulesProfileMatch(t *testing.T) {
 	reg := NewRegistry()
 	_ = reg.AddRule(&Rule{ID: "r1", Severity: SeverityError, Type: RuleTypeStructure,
 		Check: CheckSpec{FileExists: &FileExistsCheck{Path: "x"}}})
@@ -300,7 +301,7 @@ func TestEffectiveRules_ProfileMatch(t *testing.T) {
 }
 
 // TestEffectiveRules_ProfileOverride verifies per-repo disable overrides.
-func TestEffectiveRules_ProfileOverride(t *testing.T) {
+func TestEffectiveRulesProfileOverride(t *testing.T) {
 	reg := NewRegistry()
 	_ = reg.AddRule(&Rule{ID: "r1", Severity: SeverityError, Type: RuleTypeStructure,
 		Check: CheckSpec{FileExists: &FileExistsCheck{Path: "x"}}})

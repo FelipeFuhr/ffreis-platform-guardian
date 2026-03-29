@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const apiReturnedFmt = "API returned %d"
+
 // PolicyScanner fetches branch protection and repo settings via GitHub API.
 type PolicyScanner struct {
 	snapshot *RepoSnapshot
@@ -67,7 +69,7 @@ func (s *PolicyScanner) fetchRepoSettings(ctx context.Context, token, repo strin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API returned %d", resp.StatusCode)
+		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
 	}
 
 	var result struct {
@@ -117,7 +119,7 @@ func (s *PolicyScanner) fetchBranchProtection(ctx context.Context, token, repo, 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API returned %d", resp.StatusCode)
+		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
 	}
 
 	var result struct {
@@ -161,7 +163,7 @@ func (s *PolicyScanner) fetchTeamPermissions(ctx context.Context, token, org, re
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API returned %d", resp.StatusCode)
+		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
 	}
 
 	var teams []struct {
@@ -208,7 +210,7 @@ func (s *PolicyScanner) fetchTeamRepoPermission(ctx context.Context, token, org,
 		return "", nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API returned %d", resp.StatusCode)
+		return "", fmt.Errorf(apiReturnedFmt, resp.StatusCode)
 	}
 
 	var result struct {
