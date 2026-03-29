@@ -41,21 +41,19 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
+        id: gitleaks
+        uses: gacts/gitleaks@v1
         with:
-          args: >
-            detect
-            --source .
-            --config .gitleaks.toml
-            --redact
-            --report-format sarif
-            --report-path gitleaks.sarif
+          version: latest
+          config-path: .gitleaks.toml
+          path: .
+          github-token: ${{ github.token }}
 
       - name: Upload SARIF
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: gitleaks.sarif
+          sarif_file: ${{ steps.gitleaks.outputs.sarif }}
 
   fmt:
     name: Format (gofmt)
@@ -68,12 +66,12 @@ jobs:
   lint:
     name: Lint (vet + golangci-lint)
     needs: [fmt]
-      uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
-      with:
-        go-version: "1.25.8"
-        golangci-lint-version: "v1.64.8"
-        working-directory: "."
-        lint-args: "--timeout=5m"
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    with:
+      go-version: "1.25.8"
+      golangci-lint-version: "v1.64.8"
+      working-directory: "."
+      lint-args: "--timeout=5m"
 
   # ── 4. Test + Coverage + Vulnerability scan ────────────────────────────────
   test:

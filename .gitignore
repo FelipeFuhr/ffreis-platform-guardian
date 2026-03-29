@@ -23,6 +23,7 @@ profile.cov
 
 # Sonar / scanner artifacts
 .scannerwork/
+sonar-project.properties
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
