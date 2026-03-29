@@ -56,6 +56,34 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare SonarCloud arguments
+        id: sonar-args
+        env:
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          org="${SONAR_ORGANIZATION:-felipefuhr}"
+          org="$(printf '%s' "${org}" | tr '[:upper:]' '[:lower:]')"
+
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          project_key="${SONAR_PROJECT_KEY:-${GITHUB_REPOSITORY_OWNER}_${repo_name}}"
+
+          base_ref="${BASE_REF:-main}"
+
+          {
+            echo "args<<EOF"
+            echo "-Dsonar.projectKey=${project_key}"
+            echo "-Dsonar.organization=${org}"
+            echo "-Dsonar.newCode.referenceBranch=${base_ref}"
+            echo "-Dsonar.go.coverage.reportPaths=coverage.out"
+            echo "-Dsonar.sources=."
+            echo "-Dsonar.exclusions=vendor/**,**/*_test.go"
+            echo "-Dsonar.tests=."
+            echo "-Dsonar.test.inclusions=**/*_test.go"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
       # ── Coverage ────────────────────────────────────────────────────────────
       - name: Generate coverage for SonarCloud
         run: |
@@ -72,12 +100,4 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
         with:
-          args: >
-            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || format('{0}_{1}', github.repository_owner, github.event.repository.name) }}
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || 'felipefuhr' }}
-            -Dsonar.newCode.referenceBranch=${{ github.base_ref || 'main' }}
-            -Dsonar.go.coverage.reportPaths=coverage.out
-            -Dsonar.sources=.
-            -Dsonar.exclusions=vendor/**,**/*_test.go
-            -Dsonar.tests=.
-            -Dsonar.test.inclusions=**/*_test.go
+          args: ${{ steps.sonar-args.outputs.args }}
