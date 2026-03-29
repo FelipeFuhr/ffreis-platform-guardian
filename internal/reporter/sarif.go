@@ -73,7 +73,7 @@ func (r *SARIFReporter) Report(report *engine.ScanReport) error {
 		}
 	}
 
-	var sarifRules []sarifRule
+	sarifRules := make([]sarifRule, 0, len(ruleMap))
 	for _, result := range ruleMap {
 		if result.Rule == nil {
 			continue
@@ -91,7 +91,8 @@ func (r *SARIFReporter) Report(report *engine.ScanReport) error {
 		})
 	}
 
-	var sarifResults []sarifResult
+	// Use empty arrays (not null) to satisfy SARIF schema.
+	sarifResults := make([]sarifResult, 0, len(report.Results))
 	for _, result := range report.Results {
 		if result.Status != engine.StatusFail {
 			continue
