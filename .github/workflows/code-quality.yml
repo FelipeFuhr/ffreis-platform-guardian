@@ -74,7 +74,7 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || format('{0}_{1}', github.repository_owner, github.event.repository.name) }}
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || github.repository_owner }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || toLower(github.repository_owner) }}
             -Dsonar.go.coverage.reportPaths=coverage.out
             -Dsonar.sources=.
             -Dsonar.exclusions=vendor/**,**/*_test.go
