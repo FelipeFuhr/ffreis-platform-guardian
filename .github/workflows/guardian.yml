@@ -65,6 +65,7 @@ jobs:
         run: |
           platform-guardian check \
             --repo "${{ github.repository }}" \
+            --ref "${{ github.sha }}" \
             --rules ./rules/ \
             --token "$GITHUB_TOKEN" \
             --format github-annotations \
@@ -81,6 +82,7 @@ jobs:
         run: |
           platform-guardian check \
             --repo "${{ github.repository }}" \
+            --ref "${{ github.sha }}" \
             --rules ./rules/ \
             --token "$GITHUB_TOKEN" \
             --format sarif \

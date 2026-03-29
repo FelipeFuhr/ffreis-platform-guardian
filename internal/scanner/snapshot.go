@@ -21,6 +21,7 @@ type RepoSettings struct {
 
 type RepoSnapshot struct {
 	Repo             string
+	Ref              string
 	Topics           []string
 	Languages        []string
 	FilePaths        []string

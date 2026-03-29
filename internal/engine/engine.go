@@ -26,6 +26,7 @@ func NewEngine(registry *rule.Registry, log *zap.Logger) *Engine {
 type ScanOptions struct {
 	Token    string
 	Repo     string   // "org/repo"
+	Ref      string   // commit SHA or ref name
 	Topics   []string // passed in or fetched from API
 	Language string
 	Format   string
@@ -45,10 +46,18 @@ func (e *Engine) Check(ctx context.Context, opts ScanOptions) (*ScanReport, erro
 	// Apply scope matching
 	effectiveRules = Match(opts.Repo, opts.Topics, languages, effectiveRules)
 
+	// Policy checks require privileged GitHub API endpoints. If no token is
+	// configured, skip policy rules entirely (structure/content/terraform checks
+	// can still run unauthenticated on public repos).
+	if opts.Token == "" {
+		effectiveRules = filterPolicyRules(effectiveRules)
+	}
+
 	e.log.Info("rules to evaluate", zap.Int("count", len(effectiveRules)))
 
 	// Build a snapshot
 	snap := scanner.NewSnapshot(opts.Repo)
+	snap.Ref = opts.Ref
 
 	// Run scanners as needed
 	if err := e.populateSnapshot(ctx, opts, effectiveRules, snap); err != nil {
@@ -71,6 +80,17 @@ func (e *Engine) Check(ctx context.Context, opts ScanOptions) (*ScanReport, erro
 	}
 
 	return report, nil
+}
+
+func filterPolicyRules(rules []*rule.Rule) []*rule.Rule {
+	filtered := rules[:0]
+	for _, r := range rules {
+		if r.Type == rule.RuleTypePolicy {
+			continue
+		}
+		filtered = append(filtered, r)
+	}
+	return filtered
 }
 
 func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules []*rule.Rule, snap *scanner.RepoSnapshot) error {

@@ -22,7 +22,11 @@ func (s *StructureScanner) Type() ScannerType {
 }
 
 func (s *StructureScanner) Scan(ctx context.Context, token, repo string) error {
-	url := fmt.Sprintf(githubAPIBaseURL+"/repos/%s/git/trees/HEAD?recursive=1", repo)
+	ref := s.snapshot.Ref
+	if ref == "" {
+		ref = "HEAD"
+	}
+	url := fmt.Sprintf(githubAPIBaseURL+"/repos/%s/git/trees/%s?recursive=1", repo, ref)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

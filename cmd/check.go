@@ -21,6 +21,7 @@ var (
 	checkRepo   string
 	checkRules  []string
 	checkToken  string
+	checkRef    string
 	checkFormat string
 	checkFailOn string
 )
@@ -29,6 +30,7 @@ func init() {
 	checkCmd.Flags().StringVar(&checkRepo, "repo", "", "Repository in org/repo format (required)")
 	checkCmd.Flags().StringSliceVar(&checkRules, "rules", nil, "Rule directories or files (required)")
 	checkCmd.Flags().StringVar(&checkToken, "token", "", "GitHub token (falls back to GITHUB_TOKEN env)")
+	checkCmd.Flags().StringVar(&checkRef, "ref", "", "Git ref to scan (commit SHA, branch, or tag). Defaults to repository default branch.")
 	checkCmd.Flags().StringVar(&checkFormat, "format", "table", "Output format: table|json|sarif|annotations")
 	checkCmd.Flags().StringVar(&checkFailOn, "fail-on", "error", "Severity threshold for non-zero exit: error|warning|info")
 
@@ -66,6 +68,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	report, err := eng.Check(cmd.Context(), engine.ScanOptions{
 		Token:  token,
 		Repo:   checkRepo,
+		Ref:    checkRef,
 		FailOn: failOn,
 		Format: checkFormat,
 	})
