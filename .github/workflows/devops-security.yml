@@ -27,7 +27,7 @@ jobs:
 
       - name: Gitleaks scan
         id: gitleaks
-        uses: gacts/gitleaks@v1
+        uses: gacts/gitleaks@5730a84c1b79b49f35f64953e02270f1bf5c7d28
         with:
           version: latest
           config-path: .gitleaks.toml
