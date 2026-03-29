@@ -3,7 +3,7 @@ package hcl
 import (
 	"fmt"
 
-	"github.com/hashicorp/hcl/v2"
+	hashcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
@@ -12,7 +12,7 @@ import (
 func ParseFile(filePath, content string) (*TFModule, error) {
 	module := &TFModule{Path: filePath}
 
-	file, diags := hclsyntax.ParseConfig([]byte(content), filePath, hcl.Pos{Line: 1, Column: 1})
+	file, diags := hclsyntax.ParseConfig([]byte(content), filePath, hashcl.Pos{Line: 1, Column: 1})
 	if diags.HasErrors() {
 		module.Path = filePath + ":parse-error"
 		return module, fmt.Errorf("parse error in %s: %s", filePath, diags.Error())
