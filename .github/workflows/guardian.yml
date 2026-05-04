@@ -36,7 +36,12 @@ jobs:
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────
-      - uses: actions/checkout@v4
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           # Fetch the full history so file-existence checks against HEAD are
           # accurate and the git tree is complete for Terraform scanning.
@@ -96,7 +101,7 @@ jobs:
       # ── 5. Upload SARIF to Code Scanning ─────────────────────────────────
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
         with:
           sarif_file: guardian-report.sarif
           category: platform-guardian

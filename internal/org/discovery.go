@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path"
 	"strings"
@@ -85,13 +86,14 @@ func fetchOrgReposPage(ctx context.Context, org, token string, page int) ([]rawR
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		return nil, false, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
+	}
+
 	var rawRepos []rawRepo
 	if err := json.NewDecoder(resp.Body).Decode(&rawRepos); err != nil {
 		return nil, false, fmt.Errorf("decoding response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
 
 	return rawRepos, isLastPage(rawRepos), nil
