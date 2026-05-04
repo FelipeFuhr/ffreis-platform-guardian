@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,12 +15,17 @@ import (
 type Engine struct {
 	registry *rule.Registry
 	log      *zap.Logger
+	warnings io.Writer
 }
 
-func NewEngine(registry *rule.Registry, log *zap.Logger) *Engine {
+func NewEngine(registry *rule.Registry, log *zap.Logger, warnings io.Writer) *Engine {
+	if warnings == nil {
+		warnings = io.Discard
+	}
 	return &Engine{
 		registry: registry,
 		log:      log,
+		warnings: warnings,
 	}
 }
 
@@ -127,7 +133,7 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	if needs.structure {
-		s := scanner.NewStructureScanner(snap)
+		s := scanner.NewStructureScanner(snap, e.warnings)
 		if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
 			e.log.Warn("structure scanner failed", zap.Error(err))
 		}
@@ -150,7 +156,7 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 			e.log.Info("no GitHub token provided, skipping policy scanner")
 			return nil
 		}
-		s := scanner.NewPolicyScanner(snap)
+		s := scanner.NewPolicyScanner(snap, e.warnings)
 		if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
 			e.log.Warn("policy scanner failed", zap.Error(err))
 		}

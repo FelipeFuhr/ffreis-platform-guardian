@@ -1,8 +1,11 @@
 package scanner
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -11,7 +14,7 @@ func TestStructureScanner_AddsBlobPaths(t *testing.T) {
 	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
-	s := NewStructureScanner(snap)
+	s := NewStructureScanner(snap, io.Discard)
 
 	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return httpResponse(http.StatusOK, `{
@@ -30,5 +33,28 @@ func TestStructureScanner_AddsBlobPaths(t *testing.T) {
 
 	if len(snap.FilePaths) != 2 {
 		t.Fatalf("expected 2 blob paths, got %d: %#v", len(snap.FilePaths), snap.FilePaths)
+	}
+}
+
+func TestStructureScanner_WritesWarningsToConfiguredWriter(t *testing.T) {
+	origTransport := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+
+	snap := NewSnapshot("org/repo")
+	var warnings bytes.Buffer
+	s := NewStructureScanner(snap, &warnings)
+
+	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return httpResponse(http.StatusOK, `{
+  "tree": [{"path": "README.md", "type": "blob"}],
+  "truncated": true
+}`), nil
+	})
+
+	if err := s.Scan(context.Background(), "", "org/repo"); err != nil {
+		t.Fatalf("Scan() error = %v", err)
+	}
+	if !strings.Contains(warnings.String(), "tree response truncated for org/repo") {
+		t.Fatalf("expected truncation warning, got %q", warnings.String())
 	}
 }

@@ -1,58 +1,56 @@
 package cmd
 
 import (
-	"os"
-	"os/exec"
+	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/ffreis/platform-guardian/internal/engine"
 	"github.com/ffreis/platform-guardian/internal/rule"
+	"github.com/spf13/cobra"
 )
 
 func TestExitIfFailures_ExitsWithCode1(t *testing.T) {
-	if os.Getenv("WANT_EXIT_HELPER") == "1" {
-		rep := &engine.ScanReport{
-			Results: []engine.RuleResult{
-				{Repo: "org/repo", Rule: &rule.Rule{ID: "r1", Severity: rule.SeverityError}, Status: engine.StatusFail},
-			},
-		}
-		exitIfFailures(rep, rule.SeverityError)
-		return
+	rep := &engine.ScanReport{
+		Results: []engine.RuleResult{
+			{Repo: "org/repo", Rule: &rule.Rule{ID: "r1", Severity: rule.SeverityError}, Status: engine.StatusFail},
+		},
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestExitIfFailures_ExitsWithCode1")
-	cmd.Env = append(os.Environ(), "WANT_EXIT_HELPER=1")
-	err := cmd.Run()
-	if err == nil {
-		t.Fatalf("expected non-zero exit")
+	err := exitIfFailures(rep, rule.SeverityError)
+	exitErr, ok := err.(*ExitError)
+	if !ok {
+		t.Fatalf("expected ExitError, got %T", err)
 	}
-	if ee, ok := err.(*exec.ExitError); ok {
-		if ee.ExitCode() != 1 {
-			t.Fatalf("expected exit code 1, got %d", ee.ExitCode())
-		}
-		return
+	if exitErr.Code != exitError {
+		t.Fatalf("ExitError.Code = %d, want %d", exitErr.Code, exitError)
 	}
-	t.Fatalf("expected ExitError, got %T", err)
 }
 
 func TestExecute_ExitsOnCommandError(t *testing.T) {
-	if os.Getenv("WANT_EXECUTE_HELPER") == "1" {
-		rootCmd.SetArgs([]string{"definitely-not-a-command"})
-		Execute()
-		return
+	rootCmd.SetArgs([]string{"definitely-not-a-command"})
+	t.Cleanup(func() { rootCmd.SetArgs(nil) })
+
+	if code := Execute(); code != exitError {
+		t.Fatalf("Execute() code = %d, want %d", code, exitError)
+	}
+}
+
+func TestExecuteCommand_WritesErrorText(t *testing.T) {
+	t.Parallel()
+
+	command := &cobra.Command{
+		RunE: func(*cobra.Command, []string) error {
+			return &ExitError{Code: 7, Err: errors.New("boom")}
+		},
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecute_ExitsOnCommandError")
-	cmd.Env = append(os.Environ(), "WANT_EXECUTE_HELPER=1")
-	err := cmd.Run()
-	if err == nil {
-		t.Fatalf("expected non-zero exit")
+	var stderr bytes.Buffer
+	code := executeCommand(command, &stderr)
+	if code != 7 {
+		t.Fatalf("executeCommand() code = %d, want 7", code)
 	}
-	if ee, ok := err.(*exec.ExitError); ok {
-		if ee.ExitCode() != 1 {
-			t.Fatalf("expected exit code 1, got %d", ee.ExitCode())
-		}
-		return
+	if got := stderr.String(); got != "error: boom\n" {
+		t.Fatalf("executeCommand() stderr = %q", got)
 	}
-	t.Fatalf("expected ExitError, got %T", err)
 }

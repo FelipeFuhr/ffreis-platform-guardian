@@ -46,7 +46,7 @@ func TestScanRepos_WithPolicyOnlyAndNoToken_ReturnsEmptyReport(t *testing.T) {
 	})
 
 	repos := []org.RepoInfo{{FullName: "org/a"}, {FullName: "org/b"}}
-	report, _, err := scanRepos(&cobra.Command{}, reg, zap.NewNop(), repos, "")
+	report, _, err := scanRepos(&cobra.Command{}, reg, zap.NewNop(), repos, "", &bytes.Buffer{})
 	if err != nil {
 		t.Fatalf("scanRepos() error = %v", err)
 	}
@@ -67,7 +67,7 @@ func TestReportToStdout_PrintsSomething(t *testing.T) {
 	}
 
 	out := captureStdout(t, func() {
-		if err := reportToStdout(rep); err != nil {
+		if err := reportToStdout(rep, os.Stdout); err != nil {
 			t.Fatalf("reportToStdout() error = %v", err)
 		}
 	})
@@ -91,7 +91,7 @@ func TestMaybeRunAIAnalysis_WritesAnalysis(t *testing.T) {
 	}
 
 	out := captureStdout(t, func() {
-		maybeRunAIAnalysis(&cobra.Command{}, rep)
+		maybeRunAIAnalysis(&cobra.Command{}, rep, &bytes.Buffer{}, os.Stdout)
 	})
 	if out == "" {
 		t.Fatalf("expected analysis output")

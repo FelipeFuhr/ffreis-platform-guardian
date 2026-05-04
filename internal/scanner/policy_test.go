@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -13,7 +14,7 @@ func TestPolicyScanner_SetsSettingsAndPermissions(t *testing.T) {
 	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
-	s := NewPolicyScanner(snap)
+	s := NewPolicyScanner(snap, io.Discard)
 
 	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Header.Get(httpHeaderAuthorization) != authBearerPrefix+"token" {
@@ -54,7 +55,7 @@ func TestPolicyScanner_FetchRepoSettings_ErrorsOnNon200(t *testing.T) {
 	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
-	s := NewPolicyScanner(snap)
+	s := NewPolicyScanner(snap, io.Discard)
 
 	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
@@ -66,5 +67,38 @@ func TestPolicyScanner_FetchRepoSettings_ErrorsOnNon200(t *testing.T) {
 
 	if err := s.Scan(context.Background(), "token", "org/repo"); err == nil {
 		t.Fatalf("expected error")
+	}
+}
+
+func TestPolicyScanner_WritesWarningsToConfiguredWriter(t *testing.T) {
+	origTransport := http.DefaultClient.Transport
+	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+
+	snap := NewSnapshot("org/repo")
+	var warnings bytes.Buffer
+	s := NewPolicyScanner(snap, &warnings)
+
+	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/repos/org/repo":
+			return httpResponse(http.StatusOK, `{"default_branch":"main","private":true,"allow_squash_merge":true,"allow_merge_commit":false,"allow_rebase_merge":false}`), nil
+		case strings.HasPrefix(req.URL.Path, "/repos/org/repo/branches/") && strings.HasSuffix(req.URL.Path, "/protection"):
+			return httpResponse(http.StatusForbidden, ""), nil
+		case req.URL.Path == "/orgs/org/teams":
+			return httpResponse(http.StatusForbidden, ""), nil
+		default:
+			return httpResponse(http.StatusNotFound, ""), nil
+		}
+	})
+
+	if err := s.Scan(context.Background(), "token", "org/repo"); err != nil {
+		t.Fatalf("Scan() error = %v", err)
+	}
+	output := warnings.String()
+	if !strings.Contains(output, "could not fetch branch protection") {
+		t.Fatalf("expected branch protection warning, got %q", output)
+	}
+	if !strings.Contains(output, "could not fetch team permissions") {
+		t.Fatalf("expected team permissions warning, got %q", output)
 	}
 }

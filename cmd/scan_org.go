@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -64,20 +66,22 @@ func init() {
 
 func runScanOrg(cmd *cobra.Command, args []string) error {
 	log := getLogger(cmd)
+	stderr := cmd.ErrOrStderr()
+	stdout := cmd.OutOrStdout()
 
 	token := resolveGitHubToken(scanOrgToken)
 
-	registry, err := loadAndValidateRegistry(scanOrgRules, os.Stderr)
+	registry, err := loadAndValidateRegistry(scanOrgRules, stderr)
 	if err != nil {
 		return err
 	}
 
-	repos, err := discoverRepos(cmd, token)
+	repos, err := discoverRepos(cmd, token, stderr)
 	if err != nil {
 		return err
 	}
 
-	report, failOn, err := scanRepos(cmd, registry, log, repos, token)
+	report, failOn, err := scanRepos(cmd, registry, log, repos, token, stderr)
 	if err != nil {
 		return err
 	}
@@ -93,14 +97,13 @@ func runScanOrg(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := reportToStdout(report); err != nil {
+	if err := reportToStdout(report, stdout); err != nil {
 		return err
 	}
 
-	maybeRunAIAnalysis(cmd, report)
+	maybeRunAIAnalysis(cmd, report, stderr, stdout)
 
-	exitIfFailures(report, failOn)
-	return nil
+	return exitIfFailures(report, failOn)
 }
 
 func resolveGitHubToken(flagToken string) string {
@@ -110,7 +113,7 @@ func resolveGitHubToken(flagToken string) string {
 	return os.Getenv("GITHUB_TOKEN")
 }
 
-func loadAndValidateRegistry(paths []string, stderr *os.File) (*rule.Registry, error) {
+func loadAndValidateRegistry(paths []string, stderr io.Writer) (*rule.Registry, error) {
 	registry, err := rule.Load(paths)
 	if err != nil {
 		return nil, fmt.Errorf("loading rules: %w", err)
@@ -118,7 +121,7 @@ func loadAndValidateRegistry(paths []string, stderr *os.File) (*rule.Registry, e
 
 	if errs := rule.Validate(registry); len(errs) > 0 {
 		for _, e := range errs {
-			fmt.Fprintf(stderr, "validation error: %v\n", e)
+			_ = writeErrorLine(stderr, "validation error: ", e)
 		}
 		return nil, fmt.Errorf("rule validation failed")
 	}
@@ -126,7 +129,7 @@ func loadAndValidateRegistry(paths []string, stderr *os.File) (*rule.Registry, e
 	return registry, nil
 }
 
-func discoverRepos(cmd *cobra.Command, token string) ([]org.RepoInfo, error) {
+func discoverRepos(cmd *cobra.Command, token string, stderr io.Writer) ([]org.RepoInfo, error) {
 	repos, err := org.Discover(cmd.Context(), org.DiscoveryOptions{
 		Token:           token,
 		Org:             scanOrgOrg,
@@ -139,7 +142,7 @@ func discoverRepos(cmd *cobra.Command, token string) ([]org.RepoInfo, error) {
 		return nil, fmt.Errorf("discovering repos: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "discovered %d repos\n", len(repos))
+	newWriterOutput(io.Discard, stderr, getPresenter(cmd)).ErrStatus("info", "info", "discovered "+strconv.Itoa(len(repos))+" repos")
 	return repos, nil
 }
 
@@ -149,8 +152,9 @@ func scanRepos(
 	log *zap.Logger,
 	repos []org.RepoInfo,
 	token string,
+	stderr io.Writer,
 ) (*engine.ScanReport, rule.Severity, error) {
-	eng := engine.NewEngine(registry, log)
+	eng := engine.NewEngine(registry, log, stderr)
 	failOn := rule.Severity(scanOrgFailOn)
 
 	pool := org.NewWorkerPool(scanOrgConcurrency, eng, log)
@@ -208,8 +212,8 @@ func maybeWriteJSONReport(report *engine.ScanReport) error {
 	return nil
 }
 
-func reportToStdout(report *engine.ScanReport) error {
-	rep, err := reporter.New(scanOrgFormat, os.Stdout)
+func reportToStdout(report *engine.ScanReport, stdout io.Writer) error {
+	rep, err := reporter.New(scanOrgFormat, stdout)
 	if err != nil {
 		return fmt.Errorf("creating reporter: %w", err)
 	}
@@ -220,20 +224,21 @@ func reportToStdout(report *engine.ScanReport) error {
 	return nil
 }
 
-func maybeRunAIAnalysis(cmd *cobra.Command, report *engine.ScanReport) {
+func maybeRunAIAnalysis(cmd *cobra.Command, report *engine.ScanReport, stderr, stdout io.Writer) {
 	if !scanOrgAISuggest {
 		return
 	}
-	if err := runAIAnalysis(cmd, report); err != nil {
+	if err := runAIAnalysis(cmd, report, stderr, stdout); err != nil {
 		// Non-fatal: print warning and continue.
-		fmt.Fprintf(os.Stderr, "warning: AI analysis failed: %v\n", err)
+		newWriterOutput(io.Discard, stderr, getPresenter(cmd)).ErrStatus("warn", "warn", "AI analysis failed: "+err.Error())
 	}
 }
 
-func exitIfFailures(report *engine.ScanReport, failOn rule.Severity) {
+func exitIfFailures(report *engine.ScanReport, failOn rule.Severity) error {
 	if report.HasFailures(failOn) {
-		os.Exit(1)
+		return &ExitError{Code: exitError}
 	}
+	return nil
 }
 
 func writeJSONReport(path string, report *engine.ScanReport) error {
@@ -250,7 +255,7 @@ func writeJSONReport(path string, report *engine.ScanReport) error {
 	return rep.Report(report)
 }
 
-func runAIAnalysis(cmd *cobra.Command, report *engine.ScanReport) error {
+func runAIAnalysis(cmd *cobra.Command, report *engine.ScanReport, stderr, stdout io.Writer) error {
 	analysis := ai.Analyze(report, nil)
 
 	// Optionally enhance suggestions via Claude
@@ -261,13 +266,13 @@ func runAIAnalysis(cmd *cobra.Command, report *engine.ScanReport) error {
 	if apiKey != "" {
 		enhanced, err := ai.EnhanceSuggestions(cmd.Context(), analysis.Suggestions, apiKey)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: Claude enhancement failed: %v\n", err)
+			_ = writeErrorLine(stderr, "warning: Claude enhancement failed: ", err)
 		} else {
 			analysis.Suggestions = enhanced
 		}
 	}
 
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprint(os.Stdout, ai.FormatAnalysis(analysis))
+	_ = writeLine(stdout, "")
+	_, _ = io.WriteString(stdout, ai.FormatAnalysis(analysis))
 	return nil
 }
