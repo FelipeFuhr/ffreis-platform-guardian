@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -14,10 +14,14 @@ const apiReturnedFmt = "API returned %d"
 // PolicyScanner fetches branch protection and repo settings via GitHub API.
 type PolicyScanner struct {
 	snapshot *RepoSnapshot
+	warnings io.Writer
 }
 
-func NewPolicyScanner(snap *RepoSnapshot) *PolicyScanner {
-	return &PolicyScanner{snapshot: snap}
+func NewPolicyScanner(snap *RepoSnapshot, warnings io.Writer) *PolicyScanner {
+	if warnings == nil {
+		warnings = io.Discard
+	}
+	return &PolicyScanner{snapshot: snap, warnings: warnings}
 }
 
 func (s *PolicyScanner) Type() ScannerType {
@@ -36,7 +40,7 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	}
 	if err := s.fetchBranchProtection(ctx, token, repo, defaultBranch); err != nil {
 		// Not fatal
-		fmt.Fprintf(os.Stderr, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
+		fmt.Fprintf(s.warnings, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
 	}
 
 	// Fetch team permissions
@@ -44,7 +48,7 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	if len(parts) == 2 {
 		org := parts[0]
 		if err := s.fetchTeamPermissions(ctx, token, org, repo); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not fetch team permissions: %v\n", err)
+			fmt.Fprintf(s.warnings, "warning: could not fetch team permissions: %v\n", err)
 		}
 	}
 

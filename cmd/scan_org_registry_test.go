@@ -103,7 +103,7 @@ func TestDiscoverRepos_CallsOrgDiscover(t *testing.T) {
 	cmd.SetContext(context.Background())
 
 	stderr := captureStderr(t, func() {
-		repos, err := discoverRepos(cmd, "")
+		repos, err := discoverRepos(cmd, "", os.Stderr)
 		if err != nil {
 			t.Fatalf("discoverRepos() error = %v", err)
 		}

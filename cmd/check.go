@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -40,6 +41,7 @@ func init() {
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	log := getLogger(cmd)
+	out := newCommandOutput(cmd, getPresenter(cmd))
 
 	// Token fallback
 	token := checkToken
@@ -56,13 +58,13 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	// Validate
 	if errs := rule.Validate(registry); len(errs) > 0 {
 		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "validation error: %v\n", e)
+			out.ErrStatus("error", "fail", "validation error: "+e.Error())
 		}
 		return fmt.Errorf("rule validation failed")
 	}
 
 	// Run check
-	eng := engine.NewEngine(registry, log)
+	eng := engine.NewEngine(registry, log, cmd.ErrOrStderr())
 	failOn := rule.Severity(checkFailOn)
 
 	report, err := eng.Check(cmd.Context(), engine.ScanOptions{
@@ -77,7 +79,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	// Report
-	rep, err := reporter.New(checkFormat, os.Stdout)
+	rep, err := reporter.New(checkFormat, cmd.OutOrStdout())
 	if err != nil {
 		return fmt.Errorf("creating reporter: %w", err)
 	}
@@ -88,8 +90,10 @@ func runCheck(cmd *cobra.Command, args []string) error {
 
 	// Exit 1 if failures above threshold
 	if report.HasFailures(failOn) {
-		os.Exit(1)
+		out.ErrStatus("error", "fail", "check reported failures")
+		return &ExitError{Code: exitError, Err: errors.New("check reported failures")}
 	}
 
+	out.Status("ok", "ok", "check completed without failures above threshold")
 	return nil
 }

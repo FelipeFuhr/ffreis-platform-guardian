@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"go.uber.org/zap"
@@ -52,7 +53,7 @@ func TestCheckAllPass(t *testing.T) {
 
 	reg := makeRegistry(r1, r2)
 	log, _ := zap.NewDevelopment()
-	eng := NewEngine(reg, log)
+	eng := NewEngine(reg, log, io.Discard)
 
 	// Evaluate directly (no API calls)
 	report := &ScanReport{

@@ -2,6 +2,7 @@ package org
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"go.uber.org/zap"
@@ -23,7 +24,7 @@ func TestWorkerPool_ScanAll_AggregatesResults(t *testing.T) {
 		Remediation: rule.Remediation{Description: "Protect main"},
 	})
 
-	eng := engine.NewEngine(reg, zap.NewNop())
+	eng := engine.NewEngine(reg, zap.NewNop(), io.Discard)
 	pool := NewWorkerPool(0, eng, zap.NewNop()) // 0 -> default concurrency
 
 	repos := []RepoInfo{

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -23,18 +22,19 @@ func init() {
 }
 
 func runValidate(cmd *cobra.Command, args []string) error {
+	out := newCommandOutput(cmd, getPresenter(cmd))
 	registry, loadErr := rule.Load(validateRules)
 
 	hasErrors := false
 
 	if loadErr != nil {
-		fmt.Fprintf(os.Stderr, "load error: %v\n", loadErr)
+		out.ErrStatus("error", "fail", "load error: "+loadErr.Error())
 		hasErrors = true
 	}
 
 	if errs := rule.Validate(registry); len(errs) > 0 {
 		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "validation error: %v\n", e)
+			out.ErrStatus("error", "fail", "validation error: "+e.Error())
 		}
 		hasErrors = true
 	}
@@ -43,6 +43,6 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validation failed")
 	}
 
-	fmt.Println("All rules are valid.")
+	out.Status("ok", "ok", "all rules are valid")
 	return nil
 }

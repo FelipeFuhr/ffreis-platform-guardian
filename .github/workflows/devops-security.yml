@@ -16,41 +16,22 @@ permissions:
 
 jobs:
   gitleaks:
-    runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       security-events: write
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          fetch-depth: 0
-
-      - name: Gitleaks scan
-        id: gitleaks
-        uses: gacts/gitleaks@5730a84c1b79b49f35f64953e02270f1bf5c7d28
-        with:
-          version: latest
-          config-path: .gitleaks.toml
-          path: .
-          github-token: ${{ github.token }}
-
-      - name: Upload SARIF
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
-        with:
-          sarif_file: ${{ steps.gitleaks.outputs.sarif }}
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@01e2b12e992621fecf074b8a202f66044196f3bf
+    with:
+      working-directory: "."
+      scan-history: true
+      upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
 
   codeql:
     permissions:
       actions: read
       contents: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@01e2b12e992621fecf074b8a202f66044196f3bf
     with:
       languages: "go"
       source-root: "."
@@ -75,8 +56,9 @@ jobs:
   trivy-fs:
     permissions:
       contents: read
+      actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@c3e3e0a44d4b79697f1babaa9bf287d1b264da52
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@01e2b12e992621fecf074b8a202f66044196f3bf
     with:
       scan-ref: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
@@ -84,8 +66,9 @@ jobs:
   grype-fs:
     permissions:
       contents: read
+      actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@c3e3e0a44d4b79697f1babaa9bf287d1b264da52
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@01e2b12e992621fecf074b8a202f66044196f3bf
     with:
       path: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
@@ -95,7 +78,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@a02d736d25fa99fca8b4b623af9467d7afc472a4
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@01e2b12e992621fecf074b8a202f66044196f3bf
     with:
       working-directory: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}

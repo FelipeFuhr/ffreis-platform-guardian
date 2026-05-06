@@ -4,17 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 )
 
 // StructureScanner fetches the repo tree from the GitHub API.
 type StructureScanner struct {
 	snapshot *RepoSnapshot
+	warnings io.Writer
 }
 
-func NewStructureScanner(snap *RepoSnapshot) *StructureScanner {
-	return &StructureScanner{snapshot: snap}
+func NewStructureScanner(snap *RepoSnapshot, warnings io.Writer) *StructureScanner {
+	if warnings == nil {
+		warnings = io.Discard
+	}
+	return &StructureScanner{snapshot: snap, warnings: warnings}
 }
 
 func (s *StructureScanner) Type() ScannerType {
@@ -62,7 +66,7 @@ func (s *StructureScanner) Scan(ctx context.Context, token, repo string) error {
 
 	if result.Truncated {
 		// Log warning but use what's available
-		fmt.Fprintf(os.Stderr, "warning: tree response truncated for %s\n", repo)
+		fmt.Fprintf(s.warnings, "warning: tree response truncated for %s\n", repo)
 	}
 
 	for _, item := range result.Tree {
