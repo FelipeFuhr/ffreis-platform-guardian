@@ -123,7 +123,7 @@ func TestEngineCheck_ContentRuleFetchesAndEvaluates(t *testing.T) {
 		},
 	})
 
-	eng := NewEngine(reg, zap.NewNop())
+	eng := NewEngine(reg, zap.NewNop(), io.Discard)
 	report, err := eng.Check(context.Background(), ScanOptions{Repo: "org/repo"})
 	if err != nil {
 		t.Fatalf("Check() error = %v", err)
