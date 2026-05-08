@@ -62,7 +62,6 @@ jobs:
           sarif_file: ${{ steps.gitleaks.outputs.sarif }}
 
   fmt:
-    timeout-minutes: 15
     name: Format (gofmt)
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
     with:
@@ -71,7 +70,6 @@ jobs:
 
   # ── 3. Vet + Lint ──────────────────────────────────────────────────────────
   lint:
-    timeout-minutes: 15
     name: Lint (vet + golangci-lint)
     needs: [fmt]
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
@@ -83,7 +81,6 @@ jobs:
 
   # ── 4. Test + Coverage + Vulnerability scan ────────────────────────────────
   test:
-    timeout-minutes: 30
     if: ${{ !github.event.pull_request.draft }}
     name: Test
     needs: [fmt]
