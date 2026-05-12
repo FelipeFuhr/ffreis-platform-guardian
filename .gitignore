@@ -57,3 +57,6 @@ guardian-report.*
 # OS
 .DS_Store
 Thumbs.db
+
+scripts/hooks/
+scripts/bootstrap_lefthook.sh
