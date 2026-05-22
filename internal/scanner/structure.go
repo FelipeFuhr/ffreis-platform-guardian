@@ -42,7 +42,7 @@ func (s *StructureScanner) Scan(ctx context.Context, token, repo string) error {
 	}
 	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("fetching tree: %w", err)
 	}

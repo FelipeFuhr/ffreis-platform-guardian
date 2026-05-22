@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ffreis/platform-guardian/internal/rule"
+	"github.com/ffreis/platform-guardian/internal/scanner"
 )
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
@@ -61,10 +62,10 @@ func TestEngineCheck_SkipsPolicyRulesWithoutToken(t *testing.T) {
 }
 
 func TestEngineCheck_StructureRuleRunsScannerAndEvaluates(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := scanner.HTTPClient.Transport
+	t.Cleanup(func() { scanner.HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	scanner.HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if strings.Contains(req.URL.Path, "/git/trees/") {
 			return httpResponse(http.StatusOK, `{"tree":[{"path":"README.md","type":"blob"}],"truncated":false}`), nil
 		}
@@ -97,10 +98,10 @@ func TestEngineCheck_StructureRuleRunsScannerAndEvaluates(t *testing.T) {
 }
 
 func TestEngineCheck_ContentRuleFetchesAndEvaluates(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := scanner.HTTPClient.Transport
+	t.Cleanup(func() { scanner.HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	scanner.HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case strings.Contains(req.URL.Path, "/git/trees/"):
 			return httpResponse(http.StatusOK, `{"tree":[{"path":"README.md","type":"blob"}],"truncated":false}`), nil

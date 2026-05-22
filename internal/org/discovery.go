@@ -80,7 +80,7 @@ func fetchOrgReposPage(ctx context.Context, org, token string, page int) ([]rawR
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching repos: %w", err)
 	}

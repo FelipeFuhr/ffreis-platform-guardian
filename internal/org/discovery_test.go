@@ -17,10 +17,10 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestDiscoverFiltersAndPagination(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		page := queryPage(req.URL.RawQuery)
 
 		var body []byte
@@ -78,10 +78,10 @@ func TestMatchesNamePatternInvalidPatternDoesNotMatch(t *testing.T) {
 }
 
 func TestDiscoverNon200ReturnsErrorWithBody(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusForbidden,
 			Body:       io.NopCloser(bytes.NewReader([]byte(`{"message":"API rate limit exceeded"}`))),

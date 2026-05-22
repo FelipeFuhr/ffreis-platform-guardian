@@ -22,14 +22,14 @@ func httpResponse(status int, body string) *http.Response {
 }
 
 func TestFetchFile_Base64Decodes(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
 	want := "hello world"
 	encoded := base64.StdEncoding.EncodeToString([]byte(want))
 	withNewlines := encoded[:5] + "\\n" + encoded[5:] + "\\n"
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if !strings.Contains(req.URL.Path, "/contents/README.md") {
 			t.Fatalf("unexpected path: %s", req.URL.Path)
 		}
@@ -46,10 +46,10 @@ func TestFetchFile_Base64Decodes(t *testing.T) {
 }
 
 func TestFetchFile_404ReturnsEmpty(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return httpResponse(http.StatusNotFound, ""), nil
 	})
 
