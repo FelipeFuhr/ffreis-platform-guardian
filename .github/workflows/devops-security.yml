@@ -60,7 +60,7 @@ jobs:
   govulncheck:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@a543ef895b5c2d6e4e7fe87245d440889c485b7c
     with:
       go-version: "1.25.8"
       working-directory: "."
@@ -69,7 +69,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep-sarif.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep-sarif.yml@a543ef895b5c2d6e4e7fe87245d440889c485b7c
     with:
       working-directory: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
@@ -127,7 +127,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-snyk.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-snyk.yml@a543ef895b5c2d6e4e7fe87245d440889c485b7c
     with:
       working-directory: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
