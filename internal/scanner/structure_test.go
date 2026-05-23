@@ -10,13 +10,13 @@ import (
 )
 
 func TestStructureScanner_AddsBlobPaths(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
 	s := NewStructureScanner(snap, io.Discard)
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return httpResponse(http.StatusOK, `{
   "tree": [
     {"path": "README.md", "type": "blob"},
@@ -37,14 +37,14 @@ func TestStructureScanner_AddsBlobPaths(t *testing.T) {
 }
 
 func TestStructureScanner_WritesWarningsToConfiguredWriter(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
 	var warnings bytes.Buffer
 	s := NewStructureScanner(snap, &warnings)
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return httpResponse(http.StatusOK, `{
   "tree": [{"path": "README.md", "type": "blob"}],
   "truncated": true

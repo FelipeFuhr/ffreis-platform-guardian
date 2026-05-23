@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ffreis/platform-guardian/internal/org"
 )
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
@@ -81,10 +83,10 @@ func TestBaselineOrEmpty(t *testing.T) {
 }
 
 func TestDiscoverRepos_CallsOrgDiscover(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := org.HTTPClient.Transport
+	t.Cleanup(func() { org.HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	org.HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if !strings.Contains(req.URL.Path, "/orgs/testorg/repos") {
 			t.Fatalf("unexpected URL: %s", req.URL.String())
 		}

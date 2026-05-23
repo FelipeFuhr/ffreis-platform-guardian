@@ -36,10 +36,10 @@ func TestParseEnhanced_NumberedLines(t *testing.T) {
 }
 
 func TestEnhanceSuggestions_WithAPIKey_UsesClaudeResponse(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := httpClient.Transport
+	t.Cleanup(func() { httpClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	httpClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
 		}
@@ -79,10 +79,10 @@ func TestBuildPrompt_IncludesRuleIDs(t *testing.T) {
 }
 
 func TestEnhanceSuggestions_EnvFallback(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := httpClient.Transport
+	t.Cleanup(func() { httpClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	httpClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		body := `{"content":[{"type":"text","text":"1. Ok\\n"}]}`
 		return &http.Response{
 			StatusCode: http.StatusOK,
