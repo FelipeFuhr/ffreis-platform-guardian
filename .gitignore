@@ -8,8 +8,8 @@
 *.so
 *.dylib
 
-# Build output
-platform-guardian
+# Build output (root-anchored so it doesn't shadow cmd/platform-guardian/)
+/platform-guardian
 dist/
 
 # Test binary, built with `go test -c`
