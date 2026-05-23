@@ -10,13 +10,15 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ffreis/platform-guardian/internal/org"
 )
 
 func TestRunScanOrg_PolicyOnlyNoToken_DoesNotExit(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := org.HTTPClient.Transport
+	t.Cleanup(func() { org.HTTPClient.Transport = origTransport })
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	org.HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		// Only org discovery should hit the network in this scenario.
 		if !strings.Contains(req.URL.Path, "/orgs/testorg/repos") {
 			return &http.Response{

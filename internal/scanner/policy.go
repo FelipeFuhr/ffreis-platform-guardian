@@ -67,7 +67,7 @@ func (s *PolicyScanner) fetchRepoSettings(ctx context.Context, token, repo strin
 	}
 	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (s *PolicyScanner) fetchBranchProtection(ctx context.Context, token, repo, 
 	}
 	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (s *PolicyScanner) fetchTeamPermissions(ctx context.Context, token, org, re
 	}
 	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func (s *PolicyScanner) fetchTeamRepoPermission(ctx context.Context, token, org,
 	}
 	req.Header.Set(httpHeaderAccept, acceptGitHubV3RepoJSON)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}

@@ -10,13 +10,13 @@ import (
 )
 
 func TestPolicyScanner_SetsSettingsAndPermissions(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
 	s := NewPolicyScanner(snap, io.Discard)
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Header.Get(httpHeaderAuthorization) != authBearerPrefix+"token" {
 			t.Fatalf("expected auth header to be set")
 		}
@@ -51,13 +51,13 @@ func TestPolicyScanner_SetsSettingsAndPermissions(t *testing.T) {
 }
 
 func TestPolicyScanner_FetchRepoSettings_ErrorsOnNon200(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
 	s := NewPolicyScanner(snap, io.Discard)
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusForbidden,
 			Body:       io.NopCloser(strings.NewReader("")),
@@ -71,14 +71,14 @@ func TestPolicyScanner_FetchRepoSettings_ErrorsOnNon200(t *testing.T) {
 }
 
 func TestPolicyScanner_WritesWarningsToConfiguredWriter(t *testing.T) {
-	origTransport := http.DefaultClient.Transport
-	t.Cleanup(func() { http.DefaultClient.Transport = origTransport })
+	origTransport := HTTPClient.Transport
+	t.Cleanup(func() { HTTPClient.Transport = origTransport })
 
 	snap := NewSnapshot("org/repo")
 	var warnings bytes.Buffer
 	s := NewPolicyScanner(snap, &warnings)
 
-	http.DefaultClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+	HTTPClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/repos/org/repo":
 			return httpResponse(http.StatusOK, `{"default_branch":"main","private":true,"allow_squash_merge":true,"allow_merge_commit":false,"allow_rebase_merge":false}`), nil

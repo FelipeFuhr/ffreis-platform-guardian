@@ -2,6 +2,7 @@ package org
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -10,21 +11,46 @@ import (
 	"github.com/ffreis/platform-guardian/internal/rule"
 )
 
+// scanner is the minimal contract WorkerPool needs from the engine. Defined
+// here so tests can substitute an implementation that returns errors or
+// panics, exercising the panic-recovery contract below.
+type scanner interface {
+	Check(ctx context.Context, opts engine.ScanOptions) (*engine.ScanReport, error)
+}
+
 type WorkerPool struct {
 	concurrency int
-	engine      *engine.Engine
+	scanner     scanner
 	log         *zap.Logger
 }
 
-func NewWorkerPool(concurrency int, eng *engine.Engine, log *zap.Logger) *WorkerPool {
+func NewWorkerPool(concurrency int, eng scanner, log *zap.Logger) *WorkerPool {
 	if concurrency <= 0 {
 		concurrency = 10
 	}
 	return &WorkerPool{
 		concurrency: concurrency,
-		engine:      eng,
+		scanner:     eng,
 		log:         log,
 	}
+}
+
+// scanOne runs a single repo through the scanner with panic recovery. A
+// misbehaving rule must NOT take down the worker goroutine — that would
+// leak a permit from the worker pool (forever reducing throughput) and
+// crash the whole process via the Go runtime's panic-in-goroutine default.
+func (w *WorkerPool) scanOne(ctx context.Context, opts engine.ScanOptions) (results []engine.RuleResult, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("scanner panicked on %s: %v", opts.Repo, r)
+		}
+	}()
+
+	report, err := w.scanner.Check(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return report.Results, nil
 }
 
 func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string, failOn rule.Severity) (*engine.ScanReport, error) {
@@ -41,6 +67,19 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 	for i := 0; i < w.concurrency; i++ {
 		wg.Add(1)
 		go func() {
+			// Defense in depth at the goroutine boundary. scanOne already
+			// recovers panics from scanner.Check, but anything else here
+			// (channel send into resultCh, range over jobCh, log.Error
+			// formatting) is otherwise unprotected. The nakedgo analyzer
+			// requires the first statement of a goroutine body to be a
+			// defer-recover; this satisfies that contract.
+			defer func() {
+				if rec := recover(); rec != nil {
+					w.log.Error("recovered panic in ScanAll worker goroutine",
+						zap.Any("panic", rec),
+					)
+				}
+			}()
 			defer wg.Done()
 			for repo := range jobCh {
 				opts := engine.ScanOptions{
@@ -51,7 +90,7 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 					FailOn:   failOn,
 				}
 
-				report, err := w.engine.Check(ctx, opts)
+				results, err := w.scanOne(ctx, opts)
 				if err != nil {
 					w.log.Error("scan failed",
 						zap.String("repo", repo.FullName),
@@ -61,13 +100,23 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 					continue
 				}
 
-				resultCh <- report.Results
+				resultCh <- results
 			}
 		}()
 	}
 
-	// Close result channel when all workers are done
+	// Close result channel when all workers are done. wg.Wait + close are
+	// cheap and shouldn't panic on owned channels, but a defer-recover here
+	// is required to keep the nakedgo analyzer clean and is genuine defense
+	// in depth if the channel is ever closed from elsewhere by mistake.
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				w.log.Error("recovered panic in result-channel-closer goroutine",
+					zap.Any("panic", rec),
+				)
+			}
+		}()
 		wg.Wait()
 		close(resultCh)
 	}()

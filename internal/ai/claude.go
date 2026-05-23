@@ -8,10 +8,22 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 )
 
 const claudeAPIURL = "https://api.anthropic.com/v1/messages"
 const claudeModel = "claude-haiku-4-5-20251001"
+
+// claudeTimeout bounds the total time for a single Claude API request,
+// including connection, TLS handshake, request write, and response read. A
+// hung Anthropic endpoint would otherwise stall the entire scan indefinitely
+// because the AI enhancement step is synchronous in the scan pipeline.
+const claudeTimeout = 30 * time.Second
+
+// httpClient is the HTTP client used for Claude API calls. It is a package
+// variable so tests can swap its Transport without touching http.DefaultClient
+// (which is shared across the entire process and other test packages).
+var httpClient = &http.Client{Timeout: claudeTimeout}
 
 type claudeRequest struct {
 	Model     string          `json:"model"`
@@ -99,7 +111,7 @@ func callClaude(ctx context.Context, apiKey, prompt string) (string, error) {
 	httpReq.Header.Set("x-api-key", apiKey)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := httpClient.Do(httpReq)
 	if err != nil {
 		return "", err
 	}
