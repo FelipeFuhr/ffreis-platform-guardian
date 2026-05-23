@@ -67,6 +67,19 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 	for i := 0; i < w.concurrency; i++ {
 		wg.Add(1)
 		go func() {
+			// Defense in depth at the goroutine boundary. scanOne already
+			// recovers panics from scanner.Check, but anything else here
+			// (channel send into resultCh, range over jobCh, log.Error
+			// formatting) is otherwise unprotected. The nakedgo analyzer
+			// requires the first statement of a goroutine body to be a
+			// defer-recover; this satisfies that contract.
+			defer func() {
+				if rec := recover(); rec != nil {
+					w.log.Error("recovered panic in ScanAll worker goroutine",
+						zap.Any("panic", rec),
+					)
+				}
+			}()
 			defer wg.Done()
 			for repo := range jobCh {
 				opts := engine.ScanOptions{
@@ -93,9 +106,17 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 	}
 
 	// Close result channel when all workers are done. wg.Wait + close are
-	// cheap; no defer-recover needed (channel close cannot panic here because
-	// we own resultCh exclusively).
+	// cheap and shouldn't panic on owned channels, but a defer-recover here
+	// is required to keep the nakedgo analyzer clean and is genuine defense
+	// in depth if the channel is ever closed from elsewhere by mistake.
 	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				w.log.Error("recovered panic in result-channel-closer goroutine",
+					zap.Any("panic", rec),
+				)
+			}
+		}()
 		wg.Wait()
 		close(resultCh)
 	}()
