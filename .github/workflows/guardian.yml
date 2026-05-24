@@ -24,15 +24,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read        # checkout
-  security-events: write # upload SARIF to Code Scanning
-  pull-requests: write  # write inline review annotations on PRs
-
 jobs:
   guardian:
     timeout-minutes: 15
     name: Guardian drift check
+    permissions:
+      contents: read         # checkout
+      security-events: write # upload SARIF to Code Scanning
+      pull-requests: write   # write inline review annotations on PRs
+      actions: read          # codeql-action/upload-sarif needs this
     runs-on: ubuntu-latest
 
     steps:
