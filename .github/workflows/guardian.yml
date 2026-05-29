@@ -71,7 +71,7 @@ jobs:
       # Files changed tab.  The step fails on error-severity violations.
       - name: Run guardian (annotations)
         env:
-          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FLEET_READ_TOKEN }}
         run: |
           platform-guardian check \
             --repo "${{ github.repository }}" \
@@ -88,7 +88,7 @@ jobs:
       - name: Run guardian (SARIF)
         if: always()
         env:
-          GITHUB_TOKEN: ${{ secrets.GUARDIAN_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.FLEET_READ_TOKEN }}
         run: |
           platform-guardian check \
             --repo "${{ github.repository }}" \
