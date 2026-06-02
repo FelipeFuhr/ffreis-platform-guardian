@@ -17,6 +17,7 @@ name: Guardian
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
 
@@ -26,6 +27,7 @@ concurrency:
 
 jobs:
   guardian:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     timeout-minutes: 15
     name: Guardian drift check
     permissions:
