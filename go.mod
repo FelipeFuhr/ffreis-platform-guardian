@@ -1,6 +1,6 @@
 module github.com/ffreis/platform-guardian
 
-go 1.23.0
+go 1.25.8
 
 require (
 	github.com/charmbracelet/lipgloss v1.0.0
