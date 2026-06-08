@@ -1,11 +1,28 @@
 package engine
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/ffreis/platform-guardian/internal/check"
 	"github.com/ffreis/platform-guardian/internal/rule"
 )
+
+// assertCheckerType verifies that got has the same concrete type as want,
+// and returns the concrete value cast to *check.CompositeChecker when
+// applicable (nil otherwise).
+func assertCheckerType(t *testing.T, got check.Checker, want any) *check.CompositeChecker {
+	t.Helper()
+	gotType := reflect.TypeOf(got)
+	wantType := reflect.TypeOf(want)
+	if gotType != wantType {
+		t.Fatalf("expected %s, got %T", wantType, got)
+	}
+	if cc, ok := got.(*check.CompositeChecker); ok {
+		return cc
+	}
+	return nil
+}
 
 func TestBuildChecker_AllSpecTypes(t *testing.T) {
 	t.Parallel()
@@ -51,69 +68,9 @@ func TestBuildChecker_AllSpecTypes(t *testing.T) {
 				t.Fatalf("buildChecker() error = %v", err)
 			}
 
-			switch tc.want.(type) {
-			case *check.FileExistsChecker:
-				if _, ok := got.(*check.FileExistsChecker); !ok {
-					t.Fatalf("expected FileExistsChecker, got %T", got)
-				}
-			case *check.FileAbsentChecker:
-				if _, ok := got.(*check.FileAbsentChecker); !ok {
-					t.Fatalf("expected FileAbsentChecker, got %T", got)
-				}
-			case *check.FileContainsChecker:
-				if _, ok := got.(*check.FileContainsChecker); !ok {
-					t.Fatalf("expected FileContainsChecker, got %T", got)
-				}
-			case *check.FileNotContainsChecker:
-				if _, ok := got.(*check.FileNotContainsChecker); !ok {
-					t.Fatalf("expected FileNotContainsChecker, got %T", got)
-				}
-			case *check.TFProviderReqChecker:
-				if _, ok := got.(*check.TFProviderReqChecker); !ok {
-					t.Fatalf("expected TFProviderReqChecker, got %T", got)
-				}
-			case *check.TFBackendConfigChecker:
-				if _, ok := got.(*check.TFBackendConfigChecker); !ok {
-					t.Fatalf("expected TFBackendConfigChecker, got %T", got)
-				}
-			case *check.TFRequiredTagsChecker:
-				if _, ok := got.(*check.TFRequiredTagsChecker); !ok {
-					t.Fatalf("expected TFRequiredTagsChecker, got %T", got)
-				}
-			case *check.TFResourceForbidChecker:
-				if _, ok := got.(*check.TFResourceForbidChecker); !ok {
-					t.Fatalf("expected TFResourceForbidChecker, got %T", got)
-				}
-			case *check.TFModuleUsedChecker:
-				if _, ok := got.(*check.TFModuleUsedChecker); !ok {
-					t.Fatalf("expected TFModuleUsedChecker, got %T", got)
-				}
-			case *check.TFVariableReqChecker:
-				if _, ok := got.(*check.TFVariableReqChecker); !ok {
-					t.Fatalf("expected TFVariableReqChecker, got %T", got)
-				}
-			case *check.GHBranchProtectChecker:
-				if _, ok := got.(*check.GHBranchProtectChecker); !ok {
-					t.Fatalf("expected GHBranchProtectChecker, got %T", got)
-				}
-			case *check.GHTeamPermissionChecker:
-				if _, ok := got.(*check.GHTeamPermissionChecker); !ok {
-					t.Fatalf("expected GHTeamPermissionChecker, got %T", got)
-				}
-			case *check.GHRepoSettingChecker:
-				if _, ok := got.(*check.GHRepoSettingChecker); !ok {
-					t.Fatalf("expected GHRepoSettingChecker, got %T", got)
-				}
-			case *check.CompositeChecker:
-				cc, ok := got.(*check.CompositeChecker)
-				if !ok {
-					t.Fatalf("expected CompositeChecker, got %T", got)
-				}
-				if cc.Operator != "AND" || len(cc.Checks) != 2 {
-					t.Fatalf("unexpected composite checker: operator=%q checks=%d", cc.Operator, len(cc.Checks))
-				}
-			default:
-				t.Fatalf("unknown want type")
+			cc := assertCheckerType(t, got, tc.want)
+			if cc != nil && (cc.Operator != "AND" || len(cc.Checks) != 2) {
+				t.Fatalf("unexpected composite checker: operator=%q checks=%d", cc.Operator, len(cc.Checks))
 			}
 		})
 	}

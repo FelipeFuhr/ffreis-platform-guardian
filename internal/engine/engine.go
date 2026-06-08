@@ -140,17 +140,7 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	if needs.content {
-		// Collect the file paths referenced by all content rules and fetch them
-		// eagerly so that FileContainsChecker/FileNotContainsChecker have data to
-		// work with.  Files that 404 are stored as empty strings (treated as absent).
-		for _, p := range contentPathsFromRules(rules) {
-			content, err := scanner.FetchFile(ctx, opts.Token, opts.Repo, p)
-			if err != nil {
-				e.log.Warn("failed to fetch content file", zap.String("path", p), zap.Error(err))
-				continue
-			}
-			snap.FileContents[p] = content
-		}
+		e.fetchContentFiles(ctx, opts, rules, snap)
 	}
 
 	if needs.terraform {
@@ -161,16 +151,36 @@ func (e *Engine) populateSnapshot(ctx context.Context, opts ScanOptions, rules [
 	}
 
 	if needs.policy {
-		if opts.Token == "" {
-			e.log.Info("no GitHub token provided, skipping policy scanner")
-			return nil
-		}
-		s := scanner.NewPolicyScanner(snap, e.warnings)
-		if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
-			e.log.Warn("policy scanner failed", zap.Error(err))
-		}
+		return e.runPolicyScanner(ctx, opts, snap)
 	}
 
+	return nil
+}
+
+// fetchContentFiles collects file paths from all content rules and eagerly
+// fetches them so that FileContainsChecker/FileNotContainsChecker have data
+// to work with. Files that 404 are stored as empty strings (treated as absent).
+func (e *Engine) fetchContentFiles(ctx context.Context, opts ScanOptions, rules []*rule.Rule, snap *scanner.RepoSnapshot) {
+	for _, p := range contentPathsFromRules(rules) {
+		content, err := scanner.FetchFile(ctx, opts.Token, opts.Repo, p)
+		if err != nil {
+			e.log.Warn("failed to fetch content file", zap.String("path", p), zap.Error(err))
+			continue
+		}
+		snap.FileContents[p] = content
+	}
+}
+
+// runPolicyScanner runs the policy scanner if a token is available.
+func (e *Engine) runPolicyScanner(ctx context.Context, opts ScanOptions, snap *scanner.RepoSnapshot) error {
+	if opts.Token == "" {
+		e.log.Info("no GitHub token provided, skipping policy scanner")
+		return nil
+	}
+	s := scanner.NewPolicyScanner(snap, e.warnings)
+	if err := s.Scan(ctx, opts.Token, opts.Repo); err != nil {
+		e.log.Warn("policy scanner failed", zap.Error(err))
+	}
 	return nil
 }
 

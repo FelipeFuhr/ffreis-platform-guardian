@@ -66,43 +66,7 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 	var wg sync.WaitGroup
 	for i := 0; i < w.concurrency; i++ {
 		wg.Add(1)
-		go func() {
-			// Defense in depth at the goroutine boundary. scanOne already
-			// recovers panics from scanner.Check, but anything else here
-			// (channel send into resultCh, range over jobCh, log.Error
-			// formatting) is otherwise unprotected. The nakedgo analyzer
-			// requires the first statement of a goroutine body to be a
-			// defer-recover; this satisfies that contract.
-			defer func() {
-				if rec := recover(); rec != nil {
-					w.log.Error("recovered panic in ScanAll worker goroutine",
-						zap.Any("panic", rec),
-					)
-				}
-			}()
-			defer wg.Done()
-			for repo := range jobCh {
-				opts := engine.ScanOptions{
-					Token:    token,
-					Repo:     repo.FullName,
-					Topics:   repo.Topics,
-					Language: repo.Language,
-					FailOn:   failOn,
-				}
-
-				results, err := w.scanOne(ctx, opts)
-				if err != nil {
-					w.log.Error("scan failed",
-						zap.String("repo", repo.FullName),
-						zap.Error(err),
-					)
-					resultCh <- nil
-					continue
-				}
-
-				resultCh <- results
-			}
-		}()
+		go w.runWorker(ctx, &wg, jobCh, resultCh, token, failOn)
 	}
 
 	// Close result channel when all workers are done. wg.Wait + close are
@@ -130,4 +94,45 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 	}
 
 	return combined, nil
+}
+
+// runWorker is the body of a single ScanAll worker goroutine. It drains jobCh
+// and sends results (or nil on error) to resultCh, recovering any panic so
+// that a misbehaving rule cannot crash the process or leak a pool permit.
+func (w *WorkerPool) runWorker(ctx context.Context, wg *sync.WaitGroup, jobCh <-chan RepoInfo, resultCh chan<- []engine.RuleResult, token string, failOn rule.Severity) {
+	// Defense in depth at the goroutine boundary. scanOne already recovers
+	// panics from scanner.Check, but anything else here (channel send into
+	// resultCh, range over jobCh, log.Error formatting) is otherwise
+	// unprotected. The nakedgo analyzer requires the first statement of a
+	// goroutine body to be a defer-recover; this satisfies that contract.
+	defer func() {
+		if rec := recover(); rec != nil {
+			w.log.Error("recovered panic in ScanAll worker goroutine",
+				zap.Any("panic", rec),
+			)
+		}
+	}()
+	defer wg.Done()
+
+	for repo := range jobCh {
+		opts := engine.ScanOptions{
+			Token:    token,
+			Repo:     repo.FullName,
+			Topics:   repo.Topics,
+			Language: repo.Language,
+			FailOn:   failOn,
+		}
+
+		results, err := w.scanOne(ctx, opts)
+		if err != nil {
+			w.log.Error("scan failed",
+				zap.String("repo", repo.FullName),
+				zap.Error(err),
+			)
+			resultCh <- nil
+			continue
+		}
+
+		resultCh <- results
+	}
 }
