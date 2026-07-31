@@ -30,6 +30,20 @@ make build
 ./bin/platform-guardian check --repo FelipeFuhr/some-repo
 ```
 
+## Known repo-wide lint/nakedgo debt (as of PR #57, 2026-07-31)
+
+`make lint` (72 findings: errcheck, gosec, staticcheck, copyloopvar, goimports)
+and `make nakedgo` (1 finding, `internal/org/worker.go`) currently fail
+repo-wide on `main`. Both are wired into the lefthook `pre-commit`/`go.yml`
+`lint` command (via the `ffreis-platform-standards` remote), which runs
+whole-tree, not just staged files — so **any** commit to this repo currently
+gets blocked by `git commit` unless you pass `LEFTHOOK_EXCLUDE=lint` (not
+`--no-verify` — every other real hook still runs). This surfaced because
+lefthook had apparently never been installed locally for this repo before
+(`.git/hooks/` only had `.sample` files); GitHub Actions CI is currently
+billing-paused fleet-wide so it hadn't caught it either. Needs its own cleanup
+PR; do not silently keep excluding `lint` forever.
+
 ## Public repo — private-repo hygiene
 
 This is a **public** GitHub repository. When writing commit messages, PR titles,
