@@ -59,3 +59,4 @@ Thumbs.db
 
 scripts/hooks/
 scripts/bootstrap_lefthook.sh
+.bin/
