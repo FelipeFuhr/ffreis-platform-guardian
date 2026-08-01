@@ -69,7 +69,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@d9b0146bb491bf06a79c9c6289034537522cbed3
     with:
-      go-version: "1.25.8"
+      go-version: "1.25"
       working-directory: "."
 
   # ── 3. Vet + Lint ──────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@d9b0146bb491bf06a79c9c6289034537522cbed3
     with:
-      go-version: "1.25.8"
+      go-version: "1.25"
       golangci-lint-version: "v1.64.8"
       working-directory: "."
       lint-args: "--timeout=5m"
@@ -94,7 +94,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@d9b0146bb491bf06a79c9c6289034537522cbed3
     with:
-      go-version: "1.25.8"
+      go-version: "1.25"
       working-directory: "."
       test-timeout: "120s"
       run-govulncheck: true
