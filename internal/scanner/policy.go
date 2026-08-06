@@ -124,6 +124,10 @@ func (s *PolicyScanner) fetchBranchProtection(ctx context.Context, token, repo, 
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		// Could not verify (e.g. 403 from a narrowly scoped token) — record
+		// as unknown rather than leaving the map entry absent, so the
+		// checker can tell this apart from a confirmed "no protection".
+		s.snapshot.BranchProtection[branch] = BranchProtection{Unknown: true}
 		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
 	}
 

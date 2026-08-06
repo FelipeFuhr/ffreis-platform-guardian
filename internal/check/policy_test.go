@@ -39,6 +39,20 @@ func TestGHBranchProtectChecker_MissingBranchProtectionFails(t *testing.T) {
 	}
 }
 
+func TestGHBranchProtectChecker_UnknownReportsErrorNotFail(t *testing.T) {
+	t.Parallel()
+
+	snap := scanner.NewSnapshot("org/repo")
+	snap.BranchProtection["main"] = scanner.BranchProtection{Unknown: true}
+
+	c := &GHBranchProtectChecker{Branch: "main", RequirePRReviews: true}
+
+	got := c.Evaluate(snap)
+	if got.Status != Error {
+		t.Fatalf("expected Error for an unverifiable check (e.g. 403), got %s: %s", got.Status, got.Message)
+	}
+}
+
 func TestGHTeamPermissionChecker_Evaluate(t *testing.T) {
 	t.Parallel()
 
