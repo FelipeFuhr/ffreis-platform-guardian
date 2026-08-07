@@ -4,9 +4,14 @@ name: CI
 # Job dependency graph:
 #
 #   secret-scan ─┐
-#   fmt ─────────┼─→ lint ─┐
-#                └─→ test ──┴─→ container-test ─→ container-build
+#   fmt ─────────┼─→ lint ─────────────┐
+#                ├─→ test ─────────────┼─→ container-test ─→ container-build
+#                ├─→ coverage ─────────┤
+#                └─→ integration-coverage
 #
+# coverage/integration-coverage gate line coverage (75%) independently of the
+# container pipeline; integration-coverage is a no-op skip until //go:build
+# integration files exist.
 # Any failure blocks all downstream jobs.
 # GHCR push only runs on main of the origin repo (not fork PRs).
 
@@ -67,7 +72,7 @@ jobs:
     name: Format (gofmt)
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@d9b0146bb491bf06a79c9c6289034537522cbed3
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25"
       working-directory: "."
@@ -84,7 +89,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@d9b0146bb491bf06a79c9c6289034537522cbed3
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25"
       golangci-lint-version: "v1.64.8"
@@ -98,13 +103,38 @@ jobs:
     needs: [fmt]
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@d9b0146bb491bf06a79c9c6289034537522cbed3
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25"
       working-directory: "."
       test-timeout: "120s"
       run-govulncheck: true
       coverage-artifact-name: "coverage"
+
+  # ── 4b. Coverage gates (unit + integration) ────────────────────────────────
+  coverage:
+    if: ${{ !github.event.pull_request.draft }}
+    name: Coverage
+    needs: [fmt]
+    permissions:
+      contents: read
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
+    with:
+      go-version: "1.25"
+      working-directory: "."
+      coverage-threshold: 75
+
+  integration-coverage:
+    if: ${{ !github.event.pull_request.draft }}
+    name: Integration Coverage
+    needs: [fmt]
+    permissions:
+      contents: read
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-integration-coverage.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
+    with:
+      go-version: "1.25"
+      working-directory: "."
+      coverage-threshold: 75
 
   # ── 5. Container test stage ────────────────────────────────────────────────
   # Builds the 'test' Containerfile stage which re-runs tests inside the same
