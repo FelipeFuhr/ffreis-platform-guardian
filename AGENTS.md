@@ -84,6 +84,29 @@ correct to grant only `pull-requests: read` to a "check the PR title" job).
 this class of bug — it's a runtime permission-contract mismatch, not a
 syntax or resolution error.
 
+## `check` stdout is report-only (fixed 2026-08-06)
+
+`platform-guardian check --format sarif|json|annotations` writes exactly the
+formatted report to stdout and nothing else — CI redirects it straight to a
+file (`> guardian-report.sarif`) for `github/codeql-action/upload-sarif` to
+consume. `runCheck` (`cmd/check.go`) previously wrote a human status line
+("[ok] check completed...") to the *same* stdout stream on the success path
+(the failure path already correctly used stderr via `ErrStatus`), which
+appended plain text after the closing `}` of the JSON document. This was
+invisible for years because a separate, since-fixed `FLEET_READ_TOKEN` bug
+made every scanner call 401 before enough SARIF content existed to make the
+corruption reachable — once the token was fixed and the self-scan started
+succeeding, `upload-sarif` began failing with "Invalid SARIF. JSON syntax
+error: Unexpected non-whitespace character after JSON".
+
+**Any status/log text `runCheck` (or a future reporter) emits must go to
+`cmd.ErrOrStderr()`, never `cmd.OutOrStdout()`** — stdout is reserved
+exclusively for the reporter's output, for every format, not just the
+machine-readable ones. `cmd/check_cmd_test.go`'s
+`TestRunCheck_SarifFormat_StdoutIsSingleValidJSONDocument` guards this by
+decoding the CLI's captured stdout and asserting there is no trailing content
+after the JSON value; it fails immediately if this regresses.
+
 ## Public repo — private-repo hygiene
 
 This is a **public** GitHub repository. When writing commit messages, PR titles,
