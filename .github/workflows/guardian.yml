@@ -70,24 +70,23 @@ jobs:
           chmod +x /usr/local/bin/platform-guardian
 
       # ── TEMP DEBUG (remove before merge): isolate the 401 root cause ──────
+      - name: DEBUG secret is set (expression-level, before bash)
+        run: echo "secret non-empty per GH expression = ${{ secrets.FLEET_READ_TOKEN != '' }}"
+
       - name: DEBUG token
         env:
           GITHUB_TOKEN: ${{ secrets.FLEET_READ_TOKEN }}
         run: |
           echo "token length: ${#GITHUB_TOKEN}"
-          echo "runner outbound IP:"
-          curl -sS https://api.github.com/meta -o /dev/null -w "meta endpoint: %{http_code}\n" || true
-          curl -sS https://ifconfig.me || true
-          echo
-          echo "direct curl to the exact failing endpoint, same token:"
-          curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
-            -w "\nHTTP_STATUS:%{http_code}\n" \
-            "https://api.github.com/repos/${{ github.repository }}" -o /tmp/debug_resp.json
-          cat /tmp/debug_resp.json
-          echo
-          echo "response headers:"
-          curl -sSI -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}" || true
+          # Only dump content if it's suspiciously short (a real 93-char PAT
+          # never gets echoed) — this is a diagnostic, never print a value
+          # long enough to plausibly be the real secret.
+          if [ "${#GITHUB_TOKEN}" -lt 15 ]; then
+            echo "short value hex dump (safe — too short to be the real PAT):"
+            printf '%s' "$GITHUB_TOKEN" | xxd
+          else
+            echo "value looks like a real-length secret — not dumping"
+          fi
 
       # ── 3. Run guardian — GitHub Annotations ────────────────────────────
       # Findings are emitted as ::error / ::warning annotation lines.
