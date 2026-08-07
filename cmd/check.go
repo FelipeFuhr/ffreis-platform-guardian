@@ -94,6 +94,15 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return &ExitError{Code: exitError, Err: errors.New("check reported failures")}
 	}
 
-	out.Status("ok", "ok", "check completed without failures above threshold")
+	// scan-fix(bug: SARIF corruption): status line must go to stderr, not
+	// stdout — stdout is reserved for the reporter's output (rep.Report,
+	// above), and machine-readable formats like sarif/json/annotations are
+	// commonly redirected straight to a file (`> guardian-report.sarif`).
+	// Writing this confirmation to stdout appended it after the closing `}`
+	// of the SARIF document, producing "Invalid SARIF. JSON syntax error:
+	// Unexpected non-whitespace character after JSON" in CodeQL's
+	// upload-sarif step. The failure branch above already used ErrStatus
+	// (stderr) correctly; this success branch was the only stdout leak.
+	out.ErrStatus("ok", "ok", "check completed without failures above threshold")
 	return nil
 }
