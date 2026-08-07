@@ -101,4 +101,7 @@ func TestPolicyScanner_WritesWarningsToConfiguredWriter(t *testing.T) {
 	if !strings.Contains(output, "could not fetch team permissions") {
 		t.Fatalf("expected team permissions warning, got %q", output)
 	}
+	if !snap.BranchProtection["main"].Unknown {
+		t.Fatalf("expected a 403 fetching branch protection to be recorded as Unknown, got %+v", snap.BranchProtection["main"])
+	}
 }

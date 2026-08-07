@@ -22,6 +22,12 @@ func (c *GHBranchProtectChecker) Evaluate(snap *scanner.RepoSnapshot) Result {
 			Message: fmt.Sprintf("no branch protection found for branch %q", c.Branch),
 		}
 	}
+	if bp.Unknown {
+		return Result{
+			Status:  Error,
+			Message: fmt.Sprintf("could not verify branch protection for %q: API call failed (insufficient token scope?)", c.Branch),
+		}
+	}
 
 	var issues []string
 	if c.RequirePRReviews && !bp.RequirePRReviews {

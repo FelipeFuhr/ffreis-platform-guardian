@@ -5,6 +5,12 @@ import "github.com/ffreis/platform-guardian/internal/hcl"
 type BranchProtection struct {
 	RequirePRReviews    bool
 	RequireStatusChecks bool
+	// Unknown is true when the API call to check branch protection failed
+	// for a reason other than "no protection configured" (404) — e.g. a 403
+	// from an insufficiently scoped token. Distinguishes "verified: no
+	// protection" from "could not verify" so checkers don't report a false
+	// policy failure for an inconclusive result.
+	Unknown bool
 }
 
 type TeamPermission struct {

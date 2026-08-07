@@ -44,6 +44,17 @@ lefthook had apparently never been installed locally for this repo before
 billing-paused fleet-wide so it hadn't caught it either. Needs its own cleanup
 PR; do not silently keep excluding `lint` forever.
 
+**`pre-commit-compat` is also currently broken** (discovered 2026-08-06): this
+repo's `.pre-commit-config.yaml` pins `golangci-lint` to `v1.52.2`, but the
+locally installed binary is v2.x. `.golangci.yml`'s `version: "2"` key is only
+valid under golangci-lint v2's config schema — v1 hard-crashes trying to parse
+it (`Can't read config: ... 'Version' expected a map, got 'string'`), so this
+hook fails on **every** commit regardless of content. Requires
+`LEFTHOOK_EXCLUDE=lint,pre-commit-compat` until fixed. Not fixed inline because
+bumping the pin to v2 changes golangci-lint's default linter set and will
+likely surface a new wave of findings needing their own triage — do that as
+its own scoped PR, same as the `lint`/`nakedgo` debt above.
+
 ## Public repo — private-repo hygiene
 
 This is a **public** GitHub repository. When writing commit messages, PR titles,
