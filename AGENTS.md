@@ -55,6 +55,35 @@ bumping the pin to v2 changes golangci-lint's default linter set and will
 likely surface a new wave of findings needing their own triage — do that as
 its own scoped PR, same as the `lint`/`nakedgo` debt above.
 
+## Reusable-workflow permission contract (fixed in PR #60, 2026-08-06)
+
+`ci.yml`, `devops-go-ci.yml`, and `devops-pr-hygiene.yml` all had
+`conclusion: startup_failure` with **zero jobs ever created** on every run
+from 2026-05-23/24 until PR #60 — GitHub's generic "workflow file issue"
+message, with `actionlint` passing clean and every `uses:` SHA resolving
+fine, so it looked unrelated to any local mistake. Root cause: **a calling
+job's `permissions:` block must grant at least what the called reusable
+workflow's job requires** — either the called job's own `permissions:`
+override, or the reusable workflow's top-level `permissions:` default when
+the job has no override. If the caller under-grants, GitHub rejects the
+**entire run** at parse time (not just that one job) — job creation for a
+run is atomic, so one under-permissioned job takes every other job down
+with it. Two jobs were under-granting here: `lint` (needed
+`pull-requests: read` for `golangci-lint-action`'s PR lookup, only had
+`contents: read`) and `semantic-pr` (needed `contents: read`, inherited
+from `general-semantic-pr.yml`'s top-level default since that job has no
+override; only had `pull-requests: read`).
+
+**When adding a job that calls ANY `FelipeFuhr/ffreis-workflows-*` reusable
+workflow, check the callee's OWN `permissions:` (both job-level and
+top-level-as-fallback) and mirror the full set in the caller's job-level
+`permissions:` block** — do not guess from what the job "seems" to need
+logically (that's exactly how PR #23 broke `semantic-pr`: it looked
+correct to grant only `pull-requests: read` to a "check the PR title" job).
+`actionlint` and cross-repo `uses:`/SHA resolution checks do **not** catch
+this class of bug — it's a runtime permission-contract mismatch, not a
+syntax or resolution error.
+
 ## Public repo — private-repo hygiene
 
 This is a **public** GitHub repository. When writing commit messages, PR titles,

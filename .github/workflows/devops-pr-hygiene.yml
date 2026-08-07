@@ -15,7 +15,15 @@ permissions: {}
 jobs:
   semantic-pr:
     if: github.event_name == 'pull_request'
+    # scan-fix(ci:startup_failure): general-semantic-pr.yml has no job-level
+    # permissions override, so its job inherits the reusable workflow's
+    # top-level `permissions: contents: read` default. The caller must grant
+    # at least that, or GitHub rejects the whole run at parse time with
+    # startup_failure (zero jobs, "workflow file issue"), not a job failure.
+    # Dropped by #23 (b5041aa) when per-job least-privilege blocks replaced
+    # this repo's old top-level `permissions: contents: read` default.
     permissions:
+      contents: read
       pull-requests: read
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@5dfbb4986ceb88f6518fa719da3a255294cf03cf
 
