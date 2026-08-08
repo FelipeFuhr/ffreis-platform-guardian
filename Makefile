@@ -15,11 +15,13 @@ LEFTHOOK_VERSION ?= 1.7.10
 
 MUTATION_PACKAGES ?= ./internal/engine/... ./internal/rule/... ./internal/check/...
 MUTATION_THRESHOLD ?= 60
+COVERAGE_MIN     ?= 75
 LEFTHOOK_DIR     ?= $(CURDIR)/.bin
 LEFTHOOK_BIN     ?= $(LEFTHOOK_DIR)/lefthook
 
 .PHONY: all build install test test-short vet lint tidy clean check fmt fmt-check sec ci \
-        validate plan mutation-test fuzz fuzz-extended help \
+        validate plan mutation fuzz fuzz-extended help \
+        coverage-gate integration-coverage-gate \
         container-build container-test container-run container-push \
         secrets-scan-staged lefthook-bootstrap lefthook-install lefthook-run lefthook
 
@@ -76,8 +78,16 @@ fmt-check:
 sec:
 	govulncheck ./...
 
-## ci: local equivalent of CI gate (fmt-check + vet + lint + nakedgo + test + sec)
-ci: fmt-check vet lint nakedgo test sec
+## coverage-gate: run tests with coverage and fail if below COVERAGE_MIN
+coverage-gate:
+	@COVERAGE_MIN="$(COVERAGE_MIN)" ./scripts/hooks/check_coverage_gate.sh
+
+## integration-coverage-gate: run //go:build integration tests with coverage and fail if below COVERAGE_MIN (no-op if no integration-tagged files exist)
+integration-coverage-gate:
+	@COVERAGE_MIN="$(COVERAGE_MIN)" ./scripts/hooks/check_integration_coverage_gate.sh
+
+## ci: local equivalent of CI gate (fmt-check + vet + lint + nakedgo + test + coverage-gate + sec)
+ci: fmt-check vet lint nakedgo test coverage-gate sec
 
 ## nakedgo: flag goroutines that don't begin with defer recover()
 ##   Pulls the analyzer fresh on each run; no permanent dep added to go.mod.
@@ -105,8 +115,8 @@ secrets-scan-staged:
 	$(GITLEAKS) protect --staged --redact
 
 ##
-# v1.2.1
-PLATFORM_STANDARDS_SHA := 3c787edb4e96ddea2e86b2add2c32139685e8db7
+# v1.10.0
+PLATFORM_STANDARDS_SHA := 273842219190739c6b462c21331b234271446b13
 PLATFORM_STANDARDS_RAW := https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards
 
 HOOK_SCRIPTS := \
@@ -182,8 +192,8 @@ container-shell:
 	  --entrypoint /bin/sh \
 	  $(IMAGE_NAME):test
 
-## mutation-test: run mutation testing with gremlins (slow — intended for CI/weekly)
-mutation-test: ## Run mutation testing with gremlins (slow — CI only)
+## mutation: run mutation testing with gremlins (slow — intended for CI/weekly)
+mutation: ## Run mutation testing with gremlins (slow — CI only)
 	@which gremlins >/dev/null 2>&1 || go install github.com/go-gremlins/gremlins/cmd/gremlins@latest
 	gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) $(MUTATION_PACKAGES)
 
