@@ -143,6 +143,23 @@ correct to grant only `pull-requests: read` to a "check the PR title" job).
 this class of bug — it's a runtime permission-contract mismatch, not a
 syntax or resolution error.
 
+**Recurred 2026-08-09 (fixed same PR as the lint/nakedgo debt above):** the
+PR #63 pin bump of `FelipeFuhr/ffreis-workflows-go` to `v1.3.0` carried a new
+`id-token: write` requirement on `go-test.yml`'s `test` job (added for
+optional L2 S3 build-cache OIDC support — a no-op at runtime since
+`go-cache-s3` defaults `false`, but GitHub still validates the permission
+contract statically at parse time). `ci.yml`'s and `devops-go-ci.yml`'s
+`test:` jobs only granted `contents: read`, so both workflows went back to
+zero-job `startup_failure` on every run. **A reusable-workflow SHA/tag pin
+bump is itself a trigger to re-diff the callee's job `permissions:` against
+what every caller job in this repo grants — not just when adding a brand new
+job.** The failure is silent until the next PR: draft PRs still show "no
+checks" (this class of failure doesn't distinguish itself from the normal
+zero-CI-on-draft state), so it isn't caught until promotion to ready, and
+`gh pr checks` reports it as perpetual PENDING — only `check-ci.sh` (or
+`gh run view <run-id>`, which prints "This run likely failed because of a
+workflow file issue") surfaces it.
+
 ## `check` stdout is report-only (fixed 2026-08-06)
 
 `platform-guardian check --format sarif|json|annotations` writes exactly the
