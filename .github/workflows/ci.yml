@@ -92,7 +92,13 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25"
-      golangci-lint-version: "v1.64.8"
+      # scan-fix(ci): dropped the stale "v1.64.8" override — golangci-lint-action
+      # >= v7 (used by go-lint.yml at this pin) refuses v1 version strings
+      # outright ("golangci-lint v1 is not supported"). .golangci.yml already
+      # requires the v2 config schema (`version: "2"`), and go-lint.yml's own
+      # default is already v2.11.4 — matching the locally installed binary
+      # (`make lint` uses it directly) — so just inherit the default instead of
+      # re-pinning and risking the same drift again.
       working-directory: "."
       lint-args: "--timeout=5m"
 
