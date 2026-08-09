@@ -115,7 +115,9 @@ func callClaude(ctx context.Context, apiKey, prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

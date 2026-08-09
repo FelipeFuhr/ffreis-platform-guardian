@@ -311,7 +311,10 @@ func FormatAnalysis(a *Analysis) string {
 func formatPatterns(sb *strings.Builder, patterns []Pattern) {
 	sb.WriteString("Detected Patterns:\n")
 	for i, p := range patterns {
-		sb.WriteString(fmt.Sprintf("  %d. [%s] %s\n", i+1, p.Kind, p.Description))
+		// scan-fix(staticcheck:QF1012): fmt.Fprintf(sb, ...) instead of
+		// sb.WriteString(fmt.Sprintf(...)) — avoids the intermediate allocation.
+		// Return discarded: strings.Builder.Write never returns a non-nil error.
+		_, _ = fmt.Fprintf(sb, "  %d. [%s] %s\n", i+1, p.Kind, p.Description)
 	}
 	sb.WriteString("\n")
 }
@@ -319,16 +322,19 @@ func formatPatterns(sb *strings.Builder, patterns []Pattern) {
 func formatSuggestions(sb *strings.Builder, suggestions []Suggestion) {
 	sb.WriteString("Fix Suggestions (ordered by impact):\n")
 	for i, s := range suggestions {
-		sb.WriteString(fmt.Sprintf("  %d. Rule: %s  (%d repos affected)\n", i+1, s.RuleID, len(s.AffectedRepos)))
+		// scan-fix(staticcheck:QF1012): fmt.Fprintf(sb, ...) instead of
+		// sb.WriteString(fmt.Sprintf(...)) — avoids the intermediate allocation.
+		// Return discarded: strings.Builder.Write never returns a non-nil error.
+		_, _ = fmt.Fprintf(sb, "  %d. Rule: %s  (%d repos affected)\n", i+1, s.RuleID, len(s.AffectedRepos))
 		if s.Enhanced != "" {
-			sb.WriteString(fmt.Sprintf("     %s\n", s.Enhanced))
+			_, _ = fmt.Fprintf(sb, "     %s\n", s.Enhanced)
 			continue
 		}
 		if s.Remediation != "" {
-			sb.WriteString(fmt.Sprintf("     %s\n", s.Remediation))
+			_, _ = fmt.Fprintf(sb, "     %s\n", s.Remediation)
 		}
 		if len(s.AffectedRepos) > 0 && len(s.AffectedRepos) <= 5 {
-			sb.WriteString(fmt.Sprintf("     Repos: %s\n", strings.Join(s.AffectedRepos, ", ")))
+			_, _ = fmt.Fprintf(sb, "     Repos: %s\n", strings.Join(s.AffectedRepos, ", "))
 		}
 	}
 }

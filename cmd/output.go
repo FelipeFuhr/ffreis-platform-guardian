@@ -30,15 +30,20 @@ func newWriterOutput(out, err io.Writer, presenter *platformui.Presenter) *comma
 }
 
 func (o *commandOutput) Line(text string) {
-	writeLine(o.out, text)
+	// scan-fix(golangci:errcheck): explicit best-effort discard — Line() is void by
+	// design (mirrors the io.WriteString discards in Table() below); a write failure
+	// on the CLI's own stdout/stderr isn't actionable here.
+	_ = writeLine(o.out, text)
 }
 
 func (o *commandOutput) ErrLine(text string) {
-	writeLine(o.err, text)
+	// scan-fix(golangci:errcheck): explicit best-effort discard, see Line() above.
+	_ = writeLine(o.err, text)
 }
 
 func (o *commandOutput) Blank() {
-	writeLine(o.out, "")
+	// scan-fix(golangci:errcheck): explicit best-effort discard, see Line() above.
+	_ = writeLine(o.out, "")
 }
 
 func (o *commandOutput) Header(title, subtitle string) {

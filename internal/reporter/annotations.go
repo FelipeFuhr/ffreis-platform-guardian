@@ -26,18 +26,24 @@ func (r *AnnotationsReporter) Report(report *engine.ScanReport) error {
 		}
 
 		level := "error"
-		if severity == rule.SeverityWarning {
+		// scan-fix(staticcheck:QF1003): tagged switch instead of if/else-if chain on severity
+		switch severity {
+		case rule.SeverityWarning:
 			level = "warning"
-		} else if severity == rule.SeverityInfo {
+		case rule.SeverityInfo:
 			level = "notice"
 		}
 
-		fmt.Fprintf(r.w, "::%s title=%s::%s [%s]\n",
+		if _, err := fmt.Fprintf(r.w, "::%s title=%s::%s [%s]\n",
 			level,
 			ruleName,
 			result.Message,
 			result.Repo,
-		)
+		); err != nil {
+			// scan-fix(golangci:errcheck): propagate the write failure instead of
+			// silently dropping it — Report() already returns error for this.
+			return err
+		}
 	}
 	return nil
 }

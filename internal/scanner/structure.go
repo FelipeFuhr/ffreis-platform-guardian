@@ -46,7 +46,9 @@ func (s *StructureScanner) Scan(ctx context.Context, token, repo string) error {
 	if err != nil {
 		return fmt.Errorf("fetching tree: %w", err)
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("GitHub API returned %d for %s", resp.StatusCode, url)
@@ -66,7 +68,9 @@ func (s *StructureScanner) Scan(ctx context.Context, token, repo string) error {
 
 	if result.Truncated {
 		// Log warning but use what's available
-		fmt.Fprintf(s.warnings, "warning: tree response truncated for %s\n", repo)
+		// scan-fix(golangci:errcheck): explicit best-effort discard — non-fatal
+		// diagnostic write to a warnings sink (io.Discard by default).
+		_, _ = fmt.Fprintf(s.warnings, "warning: tree response truncated for %s\n", repo)
 	}
 
 	for _, item := range result.Tree {

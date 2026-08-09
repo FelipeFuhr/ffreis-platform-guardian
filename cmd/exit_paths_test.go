@@ -5,9 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	// scan-fix(golangci:goimports): move third-party cobra import ahead of the
+	// local-prefix (github.com/ffreis/...) group — matches .golangci.yml's
+	// goimports local-prefixes setting.
+	"github.com/spf13/cobra"
+
 	"github.com/ffreis/platform-guardian/internal/engine"
 	"github.com/ffreis/platform-guardian/internal/rule"
-	"github.com/spf13/cobra"
 )
 
 func TestExitIfFailures_ExitsWithCode1(t *testing.T) {

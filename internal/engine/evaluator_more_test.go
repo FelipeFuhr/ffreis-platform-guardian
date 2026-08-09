@@ -59,7 +59,7 @@ func TestBuildChecker_AllSpecTypes(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
+		// scan-fix(golangci:copyloopvar): drop redundant `tc := tc` — Go 1.22+ loop vars are per-iteration
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

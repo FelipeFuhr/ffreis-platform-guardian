@@ -241,12 +241,19 @@ func exitIfFailures(report *engine.ScanReport, failOn rule.Severity) error {
 	return nil
 }
 
-func writeJSONReport(path string, report *engine.ScanReport) error {
+func writeJSONReport(path string, report *engine.ScanReport) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	// scan-fix(golangci:errcheck): capture the deferred Close() error instead of
+	// discarding it — on a write-opened file, Close() can surface a flush failure
+	// (e.g. disk full) that Create()/Write() didn't see yet.
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	rep, err := reporter.New("json", f)
 	if err != nil {

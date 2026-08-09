@@ -40,7 +40,10 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	}
 	if err := s.fetchBranchProtection(ctx, token, repo, defaultBranch); err != nil {
 		// Not fatal
-		fmt.Fprintf(s.warnings, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
+		// scan-fix(golangci:errcheck): explicit best-effort discard — this is
+		// itself a non-fatal diagnostic write to a warnings sink (io.Discard by
+		// default); a write failure here must never break the scan.
+		_, _ = fmt.Fprintf(s.warnings, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
 	}
 
 	// Fetch team permissions
@@ -48,7 +51,8 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	if len(parts) == 2 {
 		org := parts[0]
 		if err := s.fetchTeamPermissions(ctx, token, org, repo); err != nil {
-			fmt.Fprintf(s.warnings, "warning: could not fetch team permissions: %v\n", err)
+			// scan-fix(golangci:errcheck): explicit best-effort discard, see above.
+			_, _ = fmt.Fprintf(s.warnings, "warning: could not fetch team permissions: %v\n", err)
 		}
 	}
 
@@ -71,7 +75,9 @@ func (s *PolicyScanner) fetchRepoSettings(ctx context.Context, token, repo strin
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
@@ -115,7 +121,9 @@ func (s *PolicyScanner) fetchBranchProtection(ctx context.Context, token, repo, 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// No protection configured — record empty
@@ -169,7 +177,9 @@ func (s *PolicyScanner) fetchTeamPermissions(ctx context.Context, token, org, re
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
@@ -213,7 +223,9 @@ func (s *PolicyScanner) fetchTeamRepoPermission(ctx context.Context, token, org,
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", nil

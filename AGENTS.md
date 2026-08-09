@@ -30,19 +30,78 @@ make build
 ./bin/platform-guardian check --repo FelipeFuhr/some-repo
 ```
 
-## Known repo-wide lint/nakedgo debt (as of PR #57, 2026-07-31)
+## Repo-wide lint/nakedgo debt — fixed (as of the scorecards.yml-removal PR, 2026-08-09)
 
-`make lint` (72 findings: errcheck, gosec, staticcheck, copyloopvar, goimports)
-and `make nakedgo` (1 finding, `internal/org/worker.go`) currently fail
-repo-wide on `main`. Both are wired into the lefthook `pre-commit`/`go.yml`
-`lint` command (via the `ffreis-platform-standards` remote), which runs
-whole-tree, not just staged files — so **any** commit to this repo currently
-gets blocked by `git commit` unless you pass `LEFTHOOK_EXCLUDE=lint` (not
-`--no-verify` — every other real hook still runs). This surfaced because
-lefthook had apparently never been installed locally for this repo before
-(`.git/hooks/` only had `.sample` files); GitHub Actions CI is currently
-billing-paused fleet-wide so it hadn't caught it either. Needs its own cleanup
-PR; do not silently keep excluding `lint` forever.
+`make lint` (72 findings: errcheck 55, gosec 6, staticcheck 7, copyloopvar 3,
+goimports 1) and `make nakedgo` (1 finding, `internal/org/worker.go`), both
+documented broken repo-wide since PR #57 (2026-07-31), are now clean. Root
+causes and fixes, by category:
+
+- **errcheck (55):** genuine unchecked-error findings, fixed at the root —
+  `defer resp.Body.Close()` / `os.RemoveAll(tmpDir)` now use
+  `defer func() { _ = x() }()` with an inline reason (best-effort cleanup);
+  `internal/reporter/summary.go` + `table.go` now route every direct write
+  through a small `errWriter` helper (`internal/reporter/helpers.go`) that
+  accumulates the first real write error and returns it — this also fixed two
+  previously-silent `_ = rtw.Flush()`/`_ = ftw.Flush()` calls in `table.go`
+  that were dropping genuine flush errors; `cmd/scan_org.go`'s
+  `writeJSONReport` now captures a deferred `Close()` error via a named
+  return, since a `Close()` failure on a write-opened file can mean an unflushed
+  write. Best-effort diagnostic writes (warnings sinks, CLI stdout/stderr void
+  methods) use an explicit `_, _ = fmt.Fprintf(...)` discard with a comment.
+- **staticcheck (7):** QF1012 (`sb.WriteString(fmt.Sprintf(...))` →
+  `fmt.Fprintf(sb, ...)`) and QF1003 (if/else-if severity chains → tagged
+  `switch`) — straightforward mechanical fixes.
+- **goimports (1):** `cmd/exit_paths_test.go` had a third-party import
+  (`github.com/spf13/cobra`) grouped after the local-prefix
+  (`github.com/ffreis/...`) group; `.golangci.yml` sets
+  `goimports.local-prefixes: [github.com/ffreis]`, so third-party imports must
+  sort first.
+- **copyloopvar (3):** three test files had a redundant `tc := tc` loop-var
+  copy; dropped — `go.mod` already declares `go 1.25.8`, so Go 1.22+
+  per-iteration loop semantics already apply.
+- **gosec (6):** genuine judgment call, not a blanket suppression. Two parts:
+  - `internal/hcl/walker.go` (`Walk`) now uses `os.OpenRoot`/`Root.ReadFile`
+    (Go 1.24+) instead of `filepath.WalkDir` + `os.ReadFile(absPath)`. `dir` is
+    a freshly `git clone`d, potentially untrusted repo (see
+    `scanner.TerraformScanner.Scan`); `os.Root` resolves every path via
+    openat-family syscalls and rejects any symlink that would escape `dir`,
+    atomically — closing a real (if narrow) local-file-read risk from a
+    maliciously named symlink in a scanned repo. This is a genuine security
+    fix, not a suppression.
+  - The remaining G304 (`os.Create`/`os.ReadFile` with a variable path) and
+    G204 (`exec.CommandContext` with a variable) findings are a systemic,
+    intentional pattern for a local CLI tool: every G304 path is either an
+    operator-supplied CLI flag (`--output-file`, `--baseline`,
+    `--write-baseline`, rule-dir paths) or the `os.Root`-scoped walk above;
+    both G204 sites in `internal/scanner/terraform.go` invoke `git` (resolved
+    via `exec.LookPath`) through a safe argv array, never a shell string. Per
+    workspace convention ("prefer ONE documented gosec exclude-rule... over
+    scattering suppressions"), this is now `.golangci.yml`'s
+    `linters.settings.gosec.excludes: [G304, G204]`, with the reasoning
+    documented inline there — read that comment before adding a new
+    `os.ReadFile`/`exec.Command` call and assuming it's automatically exempt;
+    re-justify per call site if the trust model ever changes (e.g. a future
+    flag that accepts a path from a remote/network source).
+
+Also fixed in the same PR: `scripts/hooks/check_required_tools.sh` was
+deleted repo-wide in commit `a04a251` (migrating hook scripts to be sourced
+from `ffreis-platform-standards` via lefthook `remotes:` instead of committed
+locally) — but PR #63 (`feat(ci): enforce 75% coverage floor...`) later added
+`scripts/hooks/check_coverage_gate.sh` and
+`check_integration_coverage_gate.sh`, both of which call
+`"${SCRIPT_DIR}/check_required_tools.sh" go` directly, without re-adding it.
+`make coverage-gate` therefore failed with exit 127 ("No such file or
+directory") on every invocation. Restored the file (same content it had
+before `a04a251` deleted it — note this is *not* the copy currently vendored
+in `ffreis-platform-standards`, which has a `return "$missing"` at the top
+level that only works when sourced, not executed directly; this repo's copy
+uses `exit "$missing"`, correct for direct execution) and force-added it since
+`scripts/hooks/` is `.gitignore`d as a whole (its two siblings were already
+tracked the same way). If `ffreis-platform-standards` ever fixes/republishes
+this script such that `make coverage-gate`/`make integration-coverage-gate`
+can source it instead of relying on a locally committed copy, prefer that and
+delete this repo's copy — don't let the two drift.
 
 **`pre-commit-compat` is also currently broken** (discovered 2026-08-06): this
 repo's `.pre-commit-config.yaml` pins `golangci-lint` to `v1.52.2`, but the

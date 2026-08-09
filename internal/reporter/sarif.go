@@ -102,9 +102,11 @@ func (r *SARIFReporter) Report(report *engine.ScanReport) error {
 		}
 
 		level := "error"
-		if result.Rule.Severity == rule.SeverityWarning {
+		// scan-fix(staticcheck:QF1003): tagged switch instead of if/else-if chain on severity
+		switch result.Rule.Severity {
+		case rule.SeverityWarning:
 			level = "warning"
-		} else if result.Rule.Severity == rule.SeverityInfo {
+		case rule.SeverityInfo:
 			level = "note"
 		}
 
