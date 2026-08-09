@@ -38,7 +38,7 @@ func (r *SummaryReporter) Report(report *engine.ScanReport) error {
 	}
 
 	// Top failing rules
-	if err := writeMostViolatedRules(r.w, report.RuleFailureCounts()); err != nil {
+	if err := writeTopRuleCounts(r.w, "Most violated rules:", "  RULE\tREPOS FAILING", "  ----\t-------------", report.RuleFailureCounts()); err != nil {
 		return err
 	}
 
@@ -56,30 +56,6 @@ func (r *SummaryReporter) Report(report *engine.ScanReport) error {
 	}
 
 	return nil
-}
-
-func writeMostViolatedRules(w io.Writer, ruleCounts map[string]int) error {
-	if len(ruleCounts) == 0 {
-		return nil
-	}
-
-	rc := sortedRuleCounts(ruleCounts)
-	limit := minInt(10, len(rc))
-
-	// scan-fix(golangci:errcheck): route through errWriter, see Report() above.
-	ew := &errWriter{w: w}
-	ew.println("Most violated rules:")
-
-	if err := writeTable(w, "  RULE\tREPOS FAILING", "  ----\t-------------", func(tew *errWriter) {
-		for _, entry := range rc[:limit] {
-			tew.printf("  %s\t%d\n", entry.id, entry.count)
-		}
-	}); err != nil {
-		return err
-	}
-
-	ew.println()
-	return ew.err
 }
 
 func writeFailingRepos(w io.Writer, repoStats map[string]*engine.RepoStats) error {

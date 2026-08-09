@@ -57,7 +57,7 @@ func writeAggregateReport(w io.Writer, report *engine.ScanReport) error {
 	if err := writePerRepoBreakdown(w, report.RepoSummary()); err != nil {
 		return err
 	}
-	if err := writeTopFailingRules(w, report.RuleFailureCounts()); err != nil {
+	if err := writeTopRuleCounts(w, "Top failing rules (by repo count):", "  RULE\tFAILURES", "  ----\t--------", report.RuleFailureCounts()); err != nil {
 		return err
 	}
 	if err := writeSeverityBreakdown(w, "Severity breakdown (failures only):", report.SeverityBreakdown()); err != nil {
@@ -85,27 +85,6 @@ func writePerRepoBreakdown(w io.Writer, repoStats map[string]*engine.RepoStats) 
 		for _, repo := range repos {
 			s := repoStats[repo]
 			tew.printf("  %s\t%d\t%d\t%d\t%d\n", repo, s.Pass, s.Fail, s.Skip, s.Error)
-		}
-	}); err != nil {
-		return err
-	}
-	ew.println()
-	return ew.err
-}
-
-func writeTopFailingRules(w io.Writer, ruleCounts map[string]int) error {
-	if len(ruleCounts) == 0 {
-		return nil
-	}
-
-	rc := sortedRuleCounts(ruleCounts)
-	limit := minInt(10, len(rc))
-
-	ew := &errWriter{w: w}
-	ew.println("Top failing rules (by repo count):")
-	if err := writeTable(w, "  RULE\tFAILURES", "  ----\t--------", func(tew *errWriter) {
-		for _, entry := range rc[:limit] {
-			tew.printf("  %s\t%d\n", entry.id, entry.count)
 		}
 	}); err != nil {
 		return err

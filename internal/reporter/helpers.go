@@ -78,6 +78,39 @@ func writeSeverityBreakdown(w io.Writer, header string, sevBreakdown map[string]
 	return ew.err
 }
 
+// writeTopRuleCounts writes header, then a two-column tabwriter table (via
+// writeTable) of the top 10 entries in ruleCounts by count desc/id asc.
+// No-op if ruleCounts is empty.
+//
+// scan-fix(sonar:duplication): shared by summary.go's writeMostViolatedRules
+// and table.go's writeTopFailingRules — after the writeTable extraction above,
+// both had converged on the identical body (sort+limit, header line, table,
+// trailing blank line), differing only in the header/column text, which
+// SonarCloud flagged as new-code duplication (22 lines in summary.go / 19 in
+// table.go).
+func writeTopRuleCounts(w io.Writer, header, tableHeader, tableSeparator string, ruleCounts map[string]int) error {
+	if len(ruleCounts) == 0 {
+		return nil
+	}
+
+	rc := sortedRuleCounts(ruleCounts)
+	limit := minInt(10, len(rc))
+
+	ew := &errWriter{w: w}
+	ew.println(header)
+
+	if err := writeTable(w, tableHeader, tableSeparator, func(tew *errWriter) {
+		for _, entry := range rc[:limit] {
+			tew.printf("  %s\t%d\n", entry.id, entry.count)
+		}
+	}); err != nil {
+		return err
+	}
+
+	ew.println()
+	return ew.err
+}
+
 type ruleCount struct {
 	id    string
 	count int
