@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"text/tabwriter"
 
 	"github.com/ffreis/platform-guardian/internal/engine"
 )
@@ -34,7 +33,7 @@ func (r *SummaryReporter) Report(report *engine.ScanReport) error {
 	}
 
 	// Severity breakdown
-	if err := writeSeverityBreakdown(r.w, report.SeverityBreakdown()); err != nil {
+	if err := writeSeverityBreakdown(r.w, "Failures by severity:", report.SeverityBreakdown()); err != nil {
 		return err
 	}
 
@@ -59,23 +58,6 @@ func (r *SummaryReporter) Report(report *engine.ScanReport) error {
 	return nil
 }
 
-func writeSeverityBreakdown(w io.Writer, sevBreakdown map[string]int) error {
-	if len(sevBreakdown) == 0 {
-		return nil
-	}
-
-	// scan-fix(golangci:errcheck): route through errWriter, see Report() above.
-	ew := &errWriter{w: w}
-	ew.println("Failures by severity:")
-	for _, sev := range []string{"error", "warning", "info"} {
-		if count, ok := sevBreakdown[sev]; ok {
-			ew.printf("  %-10s %d\n", sev, count)
-		}
-	}
-	ew.println()
-	return ew.err
-}
-
 func writeMostViolatedRules(w io.Writer, ruleCounts map[string]int) error {
 	if len(ruleCounts) == 0 {
 		return nil
@@ -88,17 +70,11 @@ func writeMostViolatedRules(w io.Writer, ruleCounts map[string]int) error {
 	ew := &errWriter{w: w}
 	ew.println("Most violated rules:")
 
-	ftw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	ftwEw := &errWriter{w: ftw}
-	ftwEw.println("  RULE\tREPOS FAILING")
-	ftwEw.println("  ----\t-------------")
-	for _, entry := range rc[:limit] {
-		ftwEw.printf("  %s\t%d\n", entry.id, entry.count)
-	}
-	if ftwEw.err != nil {
-		return ftwEw.err
-	}
-	if err := ftw.Flush(); err != nil {
+	if err := writeTable(w, "  RULE\tREPOS FAILING", "  ----\t-------------", func(tew *errWriter) {
+		for _, entry := range rc[:limit] {
+			tew.printf("  %s\t%d\n", entry.id, entry.count)
+		}
+	}); err != nil {
 		return err
 	}
 
@@ -125,18 +101,12 @@ func writeFailingRepos(w io.Writer, repoStats map[string]*engine.RepoStats) erro
 	ew := &errWriter{w: w}
 	ew.printf("Repos with failures (%d):\n", len(failing))
 
-	rtw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	rtwEw := &errWriter{w: rtw}
-	rtwEw.println("  REPO\tFAIL\tPASS")
-	rtwEw.println("  ----\t----\t----")
-	for _, repo := range failing {
-		s := repoStats[repo]
-		rtwEw.printf("  %s\t%d\t%d\n", repo, s.Fail, s.Pass)
-	}
-	if rtwEw.err != nil {
-		return rtwEw.err
-	}
-	if err := rtw.Flush(); err != nil {
+	if err := writeTable(w, "  REPO\tFAIL\tPASS", "  ----\t----\t----", func(tew *errWriter) {
+		for _, repo := range failing {
+			s := repoStats[repo]
+			tew.printf("  %s\t%d\t%d\n", repo, s.Fail, s.Pass)
+		}
+	}); err != nil {
 		return err
 	}
 

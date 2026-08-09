@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"text/tabwriter"
 )
 
 // errWriter wraps an io.Writer and records the first write error it hits, so a
@@ -30,6 +31,51 @@ func (ew *errWriter) println(args ...any) {
 		return
 	}
 	_, ew.err = fmt.Fprintln(ew.w, args...)
+}
+
+// writeTable writes a two-line header (label + separator) into a fresh
+// tabwriter wrapping w, lets fill add the data rows, then flushes. Returns the
+// first write or flush error encountered.
+//
+// scan-fix(sonar:S3776): extracted from summary.go/table.go — each report
+// format built its own "tabwriter + header + rows + flush" block inline,
+// which was both the source of the errcheck cleanup's duplication (SonarCloud
+// flagged >3% duplication on new code) and pushed writeAggregateReport's
+// cognitive complexity to 20 (over the 15 ceiling). One shared helper fixes
+// both.
+func writeTable(w io.Writer, header, separator string, fill func(tew *errWriter)) error {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	tew := &errWriter{w: tw}
+	tew.println(header)
+	tew.println(separator)
+	fill(tew)
+	if tew.err != nil {
+		return tew.err
+	}
+	return tw.Flush()
+}
+
+// writeSeverityBreakdown writes header followed by one "  <severity>  <count>"
+// line per non-empty severity bucket (error, warning, info, in that order)
+// and a trailing blank line. No-op if sevBreakdown is empty.
+//
+// scan-fix(sonar:S3776/duplication): shared by summary.go's SummaryReporter
+// and table.go's TableReporter — both built the identical block with only the
+// header text differing.
+func writeSeverityBreakdown(w io.Writer, header string, sevBreakdown map[string]int) error {
+	if len(sevBreakdown) == 0 {
+		return nil
+	}
+
+	ew := &errWriter{w: w}
+	ew.println(header)
+	for _, sev := range []string{"error", "warning", "info"} {
+		if count, ok := sevBreakdown[sev]; ok {
+			ew.printf("  %-10s %d\n", sev, count)
+		}
+	}
+	ew.println()
+	return ew.err
 }
 
 type ruleCount struct {
