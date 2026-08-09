@@ -57,8 +57,15 @@ jobs:
   test:
     if: ${{ !github.event.pull_request.draft }}
     needs: [fmt]
+    # scan-fix(ci:startup_failure): go-test.yml's job needs id-token:write (L2
+    # S3 build-cache OIDC, added in the v1.3.0 pin bump — no-op at runtime
+    # since go-cache-s3 defaults false, but GitHub validates the permission
+    # contract statically) in addition to contents:read — an under-grant here
+    # rejects the WHOLE run at parse time (zero jobs, generic "workflow file
+    # issue"), same failure mode already documented on the lint job above.
     permissions:
       contents: read
+      id-token: write
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
       go-version: "1.25"
