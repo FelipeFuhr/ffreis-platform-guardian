@@ -53,7 +53,7 @@ func TestGHRepoSettingChecker_BoolFields(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
+		// scan-fix(golangci:copyloopvar): drop redundant `tc := tc` — Go 1.22+ loop vars are per-iteration
 		t.Run(tc.field, func(t *testing.T) {
 			c := &GHRepoSettingChecker{Field: tc.field, Value: tc.value}
 			got := c.Evaluate(snap)

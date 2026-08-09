@@ -40,7 +40,10 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	}
 	if err := s.fetchBranchProtection(ctx, token, repo, defaultBranch); err != nil {
 		// Not fatal
-		fmt.Fprintf(s.warnings, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
+		// scan-fix(golangci:errcheck): explicit best-effort discard — this is
+		// itself a non-fatal diagnostic write to a warnings sink (io.Discard by
+		// default); a write failure here must never break the scan.
+		_, _ = fmt.Fprintf(s.warnings, "warning: could not fetch branch protection for %s/%s: %v\n", repo, defaultBranch, err)
 	}
 
 	// Fetch team permissions
@@ -48,7 +51,8 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 	if len(parts) == 2 {
 		org := parts[0]
 		if err := s.fetchTeamPermissions(ctx, token, org, repo); err != nil {
-			fmt.Fprintf(s.warnings, "warning: could not fetch team permissions: %v\n", err)
+			// scan-fix(golangci:errcheck): explicit best-effort discard, see above.
+			_, _ = fmt.Fprintf(s.warnings, "warning: could not fetch team permissions: %v\n", err)
 		}
 	}
 
@@ -58,20 +62,15 @@ func (s *PolicyScanner) Scan(ctx context.Context, token, repo string) error {
 func (s *PolicyScanner) fetchRepoSettings(ctx context.Context, token, repo string) error {
 	url := fmt.Sprintf(githubAPIBaseURL+"/repos/%s", repo)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	// scan-fix(sonar:duplication): request building extracted to githubGET, see
+	// its doc comment in http.go.
+	resp, err := githubGET(ctx, token, url, acceptGitHubV3JSON)
 	if err != nil {
 		return err
 	}
-	if token != "" {
-		req.Header.Set(httpHeaderAuthorization, authBearerPrefix+token)
-	}
-	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
-
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
@@ -102,20 +101,15 @@ func (s *PolicyScanner) fetchRepoSettings(ctx context.Context, token, repo strin
 func (s *PolicyScanner) fetchBranchProtection(ctx context.Context, token, repo, branch string) error {
 	url := fmt.Sprintf(githubAPIBaseURL+"/repos/%s/branches/%s/protection", repo, branch)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	// scan-fix(sonar:duplication): request building extracted to githubGET, see
+	// its doc comment in http.go.
+	resp, err := githubGET(ctx, token, url, acceptGitHubV3JSON)
 	if err != nil {
 		return err
 	}
-	if token != "" {
-		req.Header.Set(httpHeaderAuthorization, authBearerPrefix+token)
-	}
-	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
-
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		// No protection configured — record empty
@@ -156,20 +150,15 @@ func (s *PolicyScanner) fetchBranchProtection(ctx context.Context, token, repo, 
 func (s *PolicyScanner) fetchTeamPermissions(ctx context.Context, token, org, repo string) error {
 	url := fmt.Sprintf(githubAPIBaseURL+"/orgs/%s/teams?per_page=100", org)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	// scan-fix(sonar:duplication): request building extracted to githubGET, see
+	// its doc comment in http.go.
+	resp, err := githubGET(ctx, token, url, acceptGitHubV3JSON)
 	if err != nil {
 		return err
 	}
-	if token != "" {
-		req.Header.Set(httpHeaderAuthorization, authBearerPrefix+token)
-	}
-	req.Header.Set(httpHeaderAccept, acceptGitHubV3JSON)
-
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(apiReturnedFmt, resp.StatusCode)
@@ -200,20 +189,15 @@ func (s *PolicyScanner) fetchTeamPermissions(ctx context.Context, token, org, re
 func (s *PolicyScanner) fetchTeamRepoPermission(ctx context.Context, token, org, teamSlug, repo string) (string, error) {
 	url := fmt.Sprintf(githubAPIBaseURL+"/orgs/%s/teams/%s/repos/%s", org, teamSlug, repo)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	// scan-fix(sonar:duplication): request building extracted to githubGET, see
+	// its doc comment in http.go.
+	resp, err := githubGET(ctx, token, url, acceptGitHubV3RepoJSON)
 	if err != nil {
 		return "", err
 	}
-	if token != "" {
-		req.Header.Set(httpHeaderAuthorization, authBearerPrefix+token)
-	}
-	req.Header.Set(httpHeaderAccept, acceptGitHubV3RepoJSON)
-
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", nil

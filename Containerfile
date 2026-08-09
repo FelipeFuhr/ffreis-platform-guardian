@@ -7,7 +7,12 @@
 #   final    — minimal distroless image containing only the binary
 
 # ─── builder ────────────────────────────────────────────────────────────────
-FROM golang:1.25.8-alpine AS builder
+# scan-fix(trivy:CVE-2026-39836,CVE-2026-42499,CVE-2026-42504): bump the
+# builder base image — these are Go stdlib (net/mail, mime) CVEs fixed in
+# Go 1.25.11+, and the compiled binary embeds whichever stdlib version built
+# it regardless of go.mod's `toolchain` directive actually taking effect in
+# this build environment. 1.25.12-alpine matches go.mod's toolchain pin.
+FROM golang:1.25.12-alpine AS builder
 
 WORKDIR /src
 

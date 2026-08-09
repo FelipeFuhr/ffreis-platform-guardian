@@ -66,7 +66,22 @@ func (w *WorkerPool) ScanAll(ctx context.Context, repos []RepoInfo, token string
 	var wg sync.WaitGroup
 	for i := 0; i < w.concurrency; i++ {
 		wg.Add(1)
-		go w.runWorker(ctx, &wg, jobCh, resultCh, token, failOn)
+		// scan-fix(nakedgo): wrap the named-method call in a func literal that
+		// defers a recover() as its first statement. runWorker already recovers
+		// internally, but nakedgo statically requires the *literal* passed to
+		// `go` to defer-recover at entry — it cannot verify panic-safety across
+		// a call into a named function, so `go w.runWorker(...)` alone always
+		// flags here even though runWorker is in fact safe.
+		go func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					w.log.Error("recovered panic in ScanAll worker goroutine",
+						zap.Any("panic", rec),
+					)
+				}
+			}()
+			w.runWorker(ctx, &wg, jobCh, resultCh, token, failOn)
+		}()
 	}
 
 	// Close result channel when all workers are done. wg.Wait + close are

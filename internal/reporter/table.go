@@ -1,10 +1,8 @@
 package reporter
 
 import (
-	"fmt"
 	"io"
 	"sort"
-	"text/tabwriter"
 
 	"github.com/ffreis/platform-guardian/internal/engine"
 	"github.com/ffreis/platform-guardian/internal/rule"
@@ -23,19 +21,14 @@ func (r *TableReporter) Report(report *engine.ScanReport) error {
 }
 
 func writeResultRows(w io.Writer, report *engine.ScanReport) error {
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-
-	fmt.Fprintln(tw, "REPO\tRULE\tSEVERITY\tSTATUS\tMESSAGE")
-	fmt.Fprintln(tw, "----\t----\t--------\t------\t-------")
-	for _, result := range report.Results {
-		ruleName, severity := rulePresentation(result.Rule)
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", result.Repo, ruleName, severity, string(result.Status), result.Message)
-	}
-
-	if err := tw.Flush(); err != nil {
-		return err
-	}
-	return nil
+	// scan-fix(golangci:errcheck): route through errWriter (see helpers.go) so a
+	// real write failure surfaces instead of being silently dropped call-by-call.
+	return writeTable(w, "REPO\tRULE\tSEVERITY\tSTATUS\tMESSAGE", "----\t----\t--------\t------\t-------", func(tew *errWriter) {
+		for _, result := range report.Results {
+			ruleName, severity := rulePresentation(result.Rule)
+			tew.printf("%s\t%s\t%s\t%s\t%s\n", result.Repo, ruleName, severity, string(result.Status), result.Message)
+		}
+	})
 }
 
 func rulePresentation(r *rule.Rule) (string, string) {
@@ -45,67 +38,59 @@ func rulePresentation(r *rule.Rule) (string, string) {
 	return r.Name, string(r.Severity)
 }
 
+// writeAggregateReport delegates each section to its own helper (see below)
+// so that a real write failure anywhere still short-circuits the whole
+// report, without one large function accumulating every section's branching.
+//
+// scan-fix(sonar:S3776): originally one function inlining all four sections
+// (cognitive complexity 20, over the 15 ceiling) inline; split per section.
 func writeAggregateReport(w io.Writer, report *engine.ScanReport) error {
-	// ── Aggregate summary ──────────────────────────────────────────────────────
-
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "=== Aggregate Report ===\n\n")
-
-	// Per-repo breakdown
-	repoStats := report.RepoSummary()
-	repos := sortedReposByFailures(repoStats)
-
-	if len(repos) > 0 {
-		fmt.Fprintln(w, "Per-repo breakdown:")
-		rtw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(rtw, "  REPO\tPASS\tFAIL\tSKIP\tERROR")
-		fmt.Fprintln(rtw, "  ----\t----\t----\t----\t-----")
-		for _, repo := range repos {
-			s := repoStats[repo]
-			fmt.Fprintf(rtw, "  %s\t%d\t%d\t%d\t%d\n", repo, s.Pass, s.Fail, s.Skip, s.Error)
-		}
-		_ = rtw.Flush()
-		fmt.Fprintln(w)
+	// scan-fix(golangci:errcheck): route through errWriter (see helpers.go) so a
+	// real write failure surfaces instead of being silently dropped call-by-call.
+	ew := &errWriter{w: w}
+	ew.println()
+	ew.printf("=== Aggregate Report ===\n\n")
+	if ew.err != nil {
+		return ew.err
 	}
 
-	// Top failing rules
-	ruleCounts := report.RuleFailureCounts()
-	if len(ruleCounts) > 0 {
-		rc := sortedRuleCounts(ruleCounts)
-		limit := minInt(10, len(rc))
-
-		fmt.Fprintln(w, "Top failing rules (by repo count):")
-		ftw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(ftw, "  RULE\tFAILURES")
-		fmt.Fprintln(ftw, "  ----\t--------")
-		for _, entry := range rc[:limit] {
-			fmt.Fprintf(ftw, "  %s\t%d\n", entry.id, entry.count)
-		}
-		_ = ftw.Flush()
-		fmt.Fprintln(w)
+	if err := writePerRepoBreakdown(w, report.RepoSummary()); err != nil {
+		return err
 	}
-
-	// Severity breakdown
-	severityBreakdown := report.SeverityBreakdown()
-	if len(severityBreakdown) > 0 {
-		severities := []string{"error", "warning", "info"}
-		fmt.Fprintln(w, "Severity breakdown (failures only):")
-		for _, sev := range severities {
-			if count, ok := severityBreakdown[sev]; ok {
-				fmt.Fprintf(w, "  %-10s %d\n", sev, count)
-			}
-		}
-		fmt.Fprintln(w)
+	if err := writeTopRuleCounts(w, "Top failing rules (by repo count):", "  RULE\tFAILURES", "  ----\t--------", report.RuleFailureCounts()); err != nil {
+		return err
+	}
+	if err := writeSeverityBreakdown(w, "Severity breakdown (failures only):", report.SeverityBreakdown()); err != nil {
+		return err
 	}
 
 	// Org-wide totals
-	fmt.Fprintf(w, "Org totals: %d repos scanned, %d passed, %d failed\n",
+	ew.printf("Org totals: %d repos scanned, %d passed, %d failed\n",
 		report.RepoCount(),
 		report.PassCount(),
 		report.FailureCount(),
 	)
+	return ew.err
+}
 
-	return nil
+func writePerRepoBreakdown(w io.Writer, repoStats map[string]*engine.RepoStats) error {
+	repos := sortedReposByFailures(repoStats)
+	if len(repos) == 0 {
+		return nil
+	}
+
+	ew := &errWriter{w: w}
+	ew.println("Per-repo breakdown:")
+	if err := writeTable(w, "  REPO\tPASS\tFAIL\tSKIP\tERROR", "  ----\t----\t----\t----\t-----", func(tew *errWriter) {
+		for _, repo := range repos {
+			s := repoStats[repo]
+			tew.printf("  %s\t%d\t%d\t%d\t%d\n", repo, s.Pass, s.Fail, s.Skip, s.Error)
+		}
+	}); err != nil {
+		return err
+	}
+	ew.println()
+	return ew.err
 }
 
 func sortedReposByFailures(repoStats map[string]*engine.RepoStats) []string {

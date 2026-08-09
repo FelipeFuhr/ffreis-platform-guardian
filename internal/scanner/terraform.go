@@ -101,7 +101,10 @@ func (s *TerraformScanner) Scan(ctx context.Context, token, repo string) error {
 	if err != nil {
 		return fmt.Errorf("creating temp dir: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	// scan-fix(golangci:errcheck): explicit best-effort discard — this is scratch
+	// space cleanup on a scan-local temp dir; a removal failure (e.g. already
+	// gone) must not fail the scan itself.
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	cloneURL := fmt.Sprintf("https://github.com/%s.git", repo)
 	// Never embed the token in the clone URL — it can leak via process listings

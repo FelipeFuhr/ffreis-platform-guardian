@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"text/tabwriter"
 
 	"github.com/ffreis/platform-guardian/internal/engine"
 )
@@ -20,17 +19,26 @@ func (r *SummaryReporter) Report(report *engine.ScanReport) error {
 	totalPass := report.PassCount()
 	totalFail := report.FailureCount()
 
-	fmt.Fprintf(r.w, "Guardian Scan Summary\n")
-	fmt.Fprintf(r.w, "Generated: %s   Run: %s\n\n", report.GeneratedAt, report.RunID)
-	fmt.Fprintf(r.w, "Repos scanned : %d\n", totalRepos)
-	fmt.Fprintf(r.w, "Checks passed : %d\n", totalPass)
-	fmt.Fprintf(r.w, "Checks failed : %d\n\n", totalFail)
+	// scan-fix(golangci:errcheck): route direct writes through errWriter (see
+	// helpers.go) so a real write failure (e.g. a full disk) surfaces instead of
+	// being silently dropped call-by-call.
+	ew := &errWriter{w: r.w}
+	ew.printf("Guardian Scan Summary\n")
+	ew.printf("Generated: %s   Run: %s\n\n", report.GeneratedAt, report.RunID)
+	ew.printf("Repos scanned : %d\n", totalRepos)
+	ew.printf("Checks passed : %d\n", totalPass)
+	ew.printf("Checks failed : %d\n\n", totalFail)
+	if ew.err != nil {
+		return ew.err
+	}
 
 	// Severity breakdown
-	writeSeverityBreakdown(r.w, report.SeverityBreakdown())
+	if err := writeSeverityBreakdown(r.w, "Failures by severity:", report.SeverityBreakdown()); err != nil {
+		return err
+	}
 
 	// Top failing rules
-	if err := writeMostViolatedRules(r.w, report.RuleFailureCounts()); err != nil {
+	if err := writeTopRuleCounts(r.w, "Most violated rules:", "  RULE\tREPOS FAILING", "  ----\t-------------", report.RuleFailureCounts()); err != nil {
 		return err
 	}
 
@@ -41,45 +49,12 @@ func (r *SummaryReporter) Report(report *engine.ScanReport) error {
 	}
 
 	if totalFail == 0 {
-		fmt.Fprintln(r.w, "All checks passed.")
-	}
-
-	return nil
-}
-
-func writeSeverityBreakdown(w io.Writer, sevBreakdown map[string]int) {
-	if len(sevBreakdown) == 0 {
-		return
-	}
-
-	fmt.Fprintln(w, "Failures by severity:")
-	for _, sev := range []string{"error", "warning", "info"} {
-		if count, ok := sevBreakdown[sev]; ok {
-			fmt.Fprintf(w, "  %-10s %d\n", sev, count)
+		// scan-fix(golangci:errcheck): propagate the write error.
+		if _, err := fmt.Fprintln(r.w, "All checks passed."); err != nil {
+			return err
 		}
 	}
-	fmt.Fprintln(w)
-}
 
-func writeMostViolatedRules(w io.Writer, ruleCounts map[string]int) error {
-	if len(ruleCounts) == 0 {
-		return nil
-	}
-
-	rc := sortedRuleCounts(ruleCounts)
-	limit := minInt(10, len(rc))
-
-	fmt.Fprintln(w, "Most violated rules:")
-	ftw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(ftw, "  RULE\tREPOS FAILING")
-	fmt.Fprintln(ftw, "  ----\t-------------")
-	for _, entry := range rc[:limit] {
-		fmt.Fprintf(ftw, "  %s\t%d\n", entry.id, entry.count)
-	}
-	if err := ftw.Flush(); err != nil {
-		return err
-	}
-	fmt.Fprintln(w)
 	return nil
 }
 
@@ -98,19 +73,21 @@ func writeFailingRepos(w io.Writer, repoStats map[string]*engine.RepoStats) erro
 		return failing[i] < failing[j]
 	})
 
-	fmt.Fprintf(w, "Repos with failures (%d):\n", len(failing))
-	rtw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(rtw, "  REPO\tFAIL\tPASS")
-	fmt.Fprintln(rtw, "  ----\t----\t----")
-	for _, repo := range failing {
-		s := repoStats[repo]
-		fmt.Fprintf(rtw, "  %s\t%d\t%d\n", repo, s.Fail, s.Pass)
-	}
-	if err := rtw.Flush(); err != nil {
+	// scan-fix(golangci:errcheck): route through errWriter, see Report() above.
+	ew := &errWriter{w: w}
+	ew.printf("Repos with failures (%d):\n", len(failing))
+
+	if err := writeTable(w, "  REPO\tFAIL\tPASS", "  ----\t----\t----", func(tew *errWriter) {
+		for _, repo := range failing {
+			s := repoStats[repo]
+			tew.printf("  %s\t%d\t%d\n", repo, s.Fail, s.Pass)
+		}
+	}); err != nil {
 		return err
 	}
-	fmt.Fprintln(w)
-	return nil
+
+	ew.println()
+	return ew.err
 }
 
 func failingRepos(repoStats map[string]*engine.RepoStats) []string {

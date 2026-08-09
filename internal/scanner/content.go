@@ -47,7 +47,9 @@ func FetchFile(ctx context.Context, token, repo, path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fetching file: %w", err)
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return "", nil

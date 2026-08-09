@@ -84,7 +84,9 @@ func fetchOrgReposPage(ctx context.Context, org, token string, page int) ([]rawR
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching repos: %w", err)
 	}
-	defer resp.Body.Close()
+	// scan-fix(golangci:errcheck): explicit best-effort discard — a Close() failure
+	// on an already-fully-read response body is not actionable here.
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
