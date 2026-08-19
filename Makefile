@@ -11,6 +11,7 @@ IMAGE_NAME       := ghcr.io/ffreis/platform-guardian
 IMAGE_TAG        ?= dev
 
 GITLEAKS         ?= gitleaks
+GOLANGCI_LINT    ?= golangci-lint
 LEFTHOOK_VERSION ?= 1.7.10
 
 MUTATION_PACKAGES ?= ./internal/engine/... ./internal/rule/... ./internal/check/...
@@ -19,7 +20,7 @@ COVERAGE_MIN     ?= 75
 LEFTHOOK_DIR     ?= $(CURDIR)/.bin
 LEFTHOOK_BIN     ?= $(LEFTHOOK_DIR)/lefthook
 
-.PHONY: all build build-all install test test-short vet lint tidy clean check fmt fmt-check sec ci \
+.PHONY: all build build-all install test test-short vet lint tidy clean check fmt fmt-check sec ci quality-gates \
         validate plan mutation fuzz fuzz-extended help \
         coverage-gate integration-coverage-gate \
         container-build container-test container-run container-push \
@@ -54,7 +55,7 @@ vet:
 
 ## lint: run golangci-lint
 lint:
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
 
 ## tidy: tidy and verify go modules
 tidy:
@@ -90,6 +91,9 @@ integration-coverage-gate:
 
 ## ci: local equivalent of CI gate (fmt-check + vet + lint + nakedgo + test + coverage-gate + sec)
 ci: fmt-check vet lint nakedgo test coverage-gate sec
+
+## quality-gates: strict pre-push checks required by the lefthook complex tier
+quality-gates: fmt-check vet lint test coverage-gate sec build
 
 ## nakedgo: flag goroutines that don't begin with defer recover()
 ##   Pulls the analyzer fresh on each run; no permanent dep added to go.mod.
