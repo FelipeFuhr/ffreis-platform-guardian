@@ -2,7 +2,7 @@ module github.com/ffreis/platform-guardian
 
 go 1.25.8
 
-toolchain go1.25.12
+toolchain go1.25.13
 
 require (
 	github.com/hashicorp/hcl/v2 v2.24.0
