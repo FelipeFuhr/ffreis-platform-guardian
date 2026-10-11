@@ -74,7 +74,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
-      go-version: "1.25"
+      go-version: "1.26"
       working-directory: "."
 
   # ── 3. Vet + Lint ──────────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ jobs:
       pull-requests: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
-      go-version: "1.25"
+      go-version: "1.26"
       # scan-fix(ci): dropped the stale "v1.64.8" override — golangci-lint-action
       # >= v7 (used by go-lint.yml at this pin) refuses v1 version strings
       # outright ("golangci-lint v1 is not supported"). .golangci.yml already
@@ -118,7 +118,7 @@ jobs:
       id-token: write
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
-      go-version: "1.25"
+      go-version: "1.26"
       working-directory: "."
       test-timeout: "120s"
       run-govulncheck: true
@@ -133,7 +133,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
-      go-version: "1.25"
+      go-version: "1.26"
       working-directory: "."
       coverage-threshold: 75
 
@@ -145,7 +145,7 @@ jobs:
       contents: read
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-integration-coverage.yml@c3d274cf44074f49908948305861c74714cdc9d9 # v1.3.0
     with:
-      go-version: "1.25"
+      go-version: "1.26"
       working-directory: "."
       coverage-threshold: 75
 
